@@ -1,3 +1,4 @@
+# ── Upstream God's Eye View ─────────────────────────────────────────────────
 node_modules
 dist
 .env
@@ -12,3 +13,18 @@ output/
 3d-models/
 pinokio/ENVIRONMENT
 pinokio/.installed
+
+# ── Eye of Atlas additions ──────────────────────────────────────────────────
+
+# Secrets: real keys live in .env and provider dashboards, never in git.
+.env.*
+!.env.example
+
+# Wrangler / miniflare local runtime state
+.wrangler/
+
+# Editor / OS
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
