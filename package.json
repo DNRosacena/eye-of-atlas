@@ -1,18 +1,18 @@
 {
-  "name": "gods-eye-view",
+  "name": "eye-of-atlas",
   "private": true,
-  "version": "0.1.0",
-  "description": "A real-time intelligence console for planet Earth — photorealistic 3D globe, live aircraft/ships/satellites/earthquakes/CCTV, and hands-free voice control. Runs in a browser.",
+  "version": "0.0.0",
+  "description": "An interactive, AI-powered window into what is happening around Earth right now. Built on God\u2019s Eye View.",
   "type": "module",
   "license": "MIT",
-  "author": "Bilawal Sidhu",
-  "homepage": "https://github.com/bilawalsidhu/gods-eye-view#readme",
+  "author": "Daxen Nathamiel Rosacena",
+  "homepage": "https://github.com/DNRosacena/eye-of-atlas#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/bilawalsidhu/gods-eye-view.git"
+    "url": "https://github.com/DNRosacena/eye-of-atlas.git"
   },
   "bugs": {
-    "url": "https://github.com/bilawalsidhu/gods-eye-view/issues"
+    "url": "https://github.com/DNRosacena/eye-of-atlas/issues"
   },
   "engines": {
     "node": ">=24.14.0 <25 || >=26 <27"
@@ -40,7 +40,9 @@
     "preview": "vite preview",
     "test": "node scripts/run-unit-tests.mjs",
     "test:track": "node scripts/track-regression.mjs",
-    "qa:map-source-tray": "node scripts/qa-map-source-tray.mjs"
+    "qa:map-source-tray": "node scripts/qa-map-source-tray.mjs",
+    "worker:dev": "npm --prefix workers/api-proxy run dev",
+    "worker:test": "npm --prefix workers/api-proxy test"
   },
   "dependencies": {
     "@mapbox/vector-tile": "^3.0.0",

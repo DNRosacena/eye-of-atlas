@@ -1,0 +1,42 @@
+name: Bug report
+description: Something in Eye of Atlas is broken or behaves unexpectedly
+labels: [bug, needs-triage]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you expected, and what actually happened.
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Enable the ... layer
+        3. ...
+    validations: { required: true }
+  - type: input
+    id: share
+    attributes:
+      label: Share link
+      description: If the problem is view-specific, paste the URL — it encodes the exact camera, layers and selection.
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device
+      options: [Desktop, Mobile, Tablet]
+    validations: { required: true }
+  - type: input
+    id: browser
+    attributes:
+      label: Browser & OS
+      placeholder: "Chrome 141 / Linux Mint 22.3"
+    validations: { required: true }
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors
+      description: Anything red in the browser devtools console.
+      render: text

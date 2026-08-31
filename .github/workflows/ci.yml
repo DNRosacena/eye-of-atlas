@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, 'stage-*/**']
 
 permissions:
   contents: read
@@ -13,6 +13,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ── Upstream God's Eye View verification, kept as inherited ────────────────
+  # The app's own suite (~2,600 tests, including per-frame allocation budgets).
+  # It is a valuable regression net for our Stage 1 refactors, so it is
+  # preserved rather than replaced.
   verify:
     name: Node ${{ matrix.node }}
     runs-on: ubuntu-latest
@@ -75,3 +79,85 @@ jobs:
 
       - name: Build production bundle
         run: npm run build
+
+  # ── Eye of Atlas additions ────────────────────────────────────────────────
+
+  worker:
+    name: Worker (api-proxy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: workers/api-proxy
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: workers/api-proxy/package-lock.json
+
+      - run: npm ci
+
+      - name: Syntax check
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Audit
+        run: npm audit --audit-level=high
+
+  compliance:
+    name: Compliance guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # Cheap backstop against the one mistake that is expensive to undo.
+      # .env.example placeholders are empty, so they do not trip this.
+      - name: Scan for key-shaped literals
+        run: |
+          if git grep -nIE 'AIza[0-9A-Za-z_-]{30,}|sk-[A-Za-z0-9]{32,}|(FIRMS_MAP_KEY|GOOGLE_[A-Z_]*API_KEY|GEMINI_API_KEY)[[:space:]]*=[[:space:]]*[A-Za-z0-9_-]{16,}' \
+               -- ':!*.md' ':!.github/workflows/*'; then
+            echo "::error::Possible committed secret. Real keys belong in .env or the provider dashboard."
+            exit 1
+          fi
+          echo "No key-shaped literals found."
+
+      - name: Ensure .env is not tracked
+        run: |
+          if git ls-files --error-unmatch .env 2>/dev/null; then
+            echo "::error::.env is tracked by git. It must be gitignored."
+            exit 1
+          fi
+          echo ".env is not tracked."
+
+      # Class-D sources were removed for licensing reasons. Reintroducing one
+      # would be a licence breach in an ad-supported product, so this fails the
+      # build rather than relying on review to catch it.
+      - name: No Class-D data source reintroduced
+        run: |
+          status=0
+          check() {
+            if git grep -nIE "$2" -- \
+                 ':!*.md' ':!.github/workflows/*' ':!docs/*'; then
+              echo "::error::Class-D source reintroduced: $1. See COMMERCIAL_COMPLIANCE.md."
+              status=1
+            fi
+          }
+          check "OpenSky"         'opensky-network\.org|/api/opensky'
+          check "TeleGeography"   'telegeography|submarinecablemap'
+          check "Google News RSS" 'news\.google\.com'
+          check "Open-Meteo"      'api\.open-meteo\.com'
+          if [ "$status" -eq 0 ]; then echo "No Class-D sources present."; fi
+          exit "$status"

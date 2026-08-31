@@ -23,6 +23,10 @@ pinokio/.installed
 # Wrangler / miniflare local runtime state
 .wrangler/
 
+# Scratch clone of upstream used during the Stage 0 audit. Redundant now that
+# this repo IS the fork and `upstream` is a remote — safe to delete locally.
+gods-eye-view-upstream/
+
 # Editor / OS
 Thumbs.db
 .idea/
