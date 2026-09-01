@@ -1,0 +1,10 @@
+# Eye of Atlas — PRE-LAUNCH.
+#
+# Indexing is disallowed until the product actually launches (master plan
+# Stage 6). The SEO route structure and its anti-thin-content rules are Stage 4
+# work; letting a crawler index an unfinished build now would put exactly the
+# thin pages the plan forbids into the index, and they are slow to remove.
+#
+# REMOVE THIS FILE (or replace it with the Stage 4 rules) at launch.
+User-agent: *
+Disallow: /
