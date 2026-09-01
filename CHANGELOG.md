@@ -61,6 +61,14 @@ Four data sources whose terms forbid use in a monetised product:
   built from locally accumulated fixes, which was already the fallback on any
   backfill failure. Repointing at adsb.lol traces is a Stage 1 follow-up.
 
+#### Resolved
+- **The P0 low-cost imagery fallback now has a licensed source.** ArcGIS
+  Location Platform supplies the satellite basemap, the keyless-boot path and
+  the degradation target for Google 3D Tiles budget exhaustion in one move —
+  no infrastructure, no monthly cost at MVP volume. Cesium ion (ambiguous
+  terms) and `tile.openstreetmap.org` (unsuitable for commercial traffic) are
+  both out of that role; OSM remains only as a development fallback.
+
 #### Changed — basemap moved to a licensed service
 - **Esri satellite imagery now goes through ArcGIS Location Platform** instead
   of the keyless `services.arcgisonline.com` endpoint. That endpoint is

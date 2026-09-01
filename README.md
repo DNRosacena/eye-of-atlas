@@ -141,10 +141,11 @@ Read these before changing anything:
 
 ## Open decisions
 
-- The P0 low-cost imagery fallback has no confirmed licensed source. Cesium
-  ion's terms are ambiguous for a public ad-supported product and OSM's tile
-  server is unsuitable for high-traffic commercial use. Upstream v0.1.0 added
-  keyless **Esri World Imagery**, which needs its own licence review.
+- ~~The P0 low-cost imagery fallback has no confirmed licensed source.~~
+  **Resolved:** Esri World Imagery via **ArcGIS Location Platform** (commercial
+  deployment licence, 2M basemap tiles/month free). Set `ARCGIS_API_KEY`;
+  without it the app falls back to OSM, which is fine for development but not
+  licensed for production traffic.
 - Google 3D Tiles billing is understood from published documentation, not from
   observed billing. It needs confirming before we rely on it.
 

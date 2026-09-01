@@ -5,7 +5,7 @@
 **Auditor:** Claude Code (implementation agent), reviewed by the project owner
 **Codebase audited:** God's Eye View @ `6d83bb6` (see [docs/GEV-INSPECTION.md](docs/GEV-INSPECTION.md))
 **Authority:** Eye of Atlas Master Plan §4
-**Status:** 🟢 **Class-D removal LANDED 2026-09-01** (commit `chore: commercial data cleanup`). Two owner decisions resolved; two remain open (§6).
+**Status:** 🟢 **Class-D removal LANDED 2026-09-01** (commit `chore: commercial data cleanup`). Four owner decisions resolved (weather, ships, Esri, imagery fallback); one open (§6.4 geocoding) plus one legal-review flag (§6.5).
 
 **What changed since this audit was written:**
 - Weather **cut from MVP** (owner decision) — Open-Meteo removed, §6.1 closed.
@@ -58,14 +58,14 @@ Their definition of commercial use is explicit and names our exact model:
 **Options:** (a) paid Open-Meteo plan — smallest tier, breaks "$0" but modestly; (b) **self-host** Open-Meteo (it is open-source) — free but real infra, contradicts §6.1 "no server"; (c) different weather provider; (d) **cut weather from MVP**.
 **My recommendation: (d) cut from MVP**, revisit as a paid Track B item. Weather is the least differentiated layer we have (Windy and Zoom Earth own it), it is P1 not P0, and it is the only MVP layer that would cost money on day one. → **Owner decision required, §6.1.**
 
-### 🔴 2.2 The P0 "2D/low-cost imagery fallback" has **no confirmed source**
+### 🟢 2.2 The P0 "2D/low-cost imagery fallback" — **resolved 2026-09-01** (was: no confirmed source)
 
 Master plan §5.2 lists a 2D/low-cost imagery fallback as **P0**, and master plan §6.6 makes it the mechanism that caps Google 3D Tiles spend. It suggests "Cesium ion free imagery / OSM". **Both are now in doubt:**
 
 - **Cesium ion** — the ToS is enterprise-oriented and ambiguous for our case: the licence *"does not permit you to include ion in your own solution that you make commercially available to other organizations"*, and the service *"may not be operated … as, or to perform, a service for or on behalf of any third parties."* Whether a free public ad-supported website is "commercially available to other organizations" is genuinely unclear. Separately, **the "Cesium ion" logo must be prominently displayed** on the main application window. → reclassified **C → E**.
 - **`tile.openstreetmap.org`** — the OSMF tile usage policy states access *"may be withdrawn at any point"*, blocks occur *"without prior notice"*, and it is **unsuitable for mission-critical commercial services**; they direct commercial/high-traffic sites to alternative providers or self-hosting.
 
-**Impact:** the cost-control architecture in master plan §6.6 depends on a fallback we do not yet have a licensed source for. This is a **Stage 1 blocker**, not a Stage 0 one. → **Owner decision required, §6.2.**
+**Impact at the time:** the cost-control architecture in master plan §6.6 depended on a fallback with no licensed source. **Now resolved** — ArcGIS Location Platform supplies it (§6.2, §6.6). Neither Cesium ion nor `tile.openstreetmap.org` is used for it.
 
 > **Update 2026-09-01:** §6.6 below identifies a likely answer — **ArcGIS Location Platform**'s free tier (2M basemap tiles/month) carries a commercial deployment licence, giving us a licensed satellite basemap and the cost-capping fallback in one move, with no infrastructure to run.
 
@@ -269,8 +269,30 @@ I have deliberately **not** guessed on any of these — each changes scope, cost
 ### 6.1 🔴 Weather / Open-Meteo (§2.1) — changes MVP scope
 The free API forbids ad-supported use. Options: **(a)** paid Open-Meteo plan · **(b)** self-host (open-source, but contradicts "no server") · **(c)** another provider · **(d)** **cut weather from MVP** ← my recommendation. It is P1, the least differentiated layer we have, and the only MVP layer that costs money on day one.
 
-### 6.2 🔴 The P0 imagery fallback (§2.2) — Stage 1 blocker
-Cesium ion is ambiguous; `tile.openstreetmap.org` is discouraged for our traffic. Options: **(a)** get clarity from Cesium (their sales/legal will answer a direct question) · **(b)** a commercial tile provider with a free commercial tier (MapTiler, Stadia, Protomaps — needs its own audit) · **(c)** self-host Protomaps basemap tiles on Cloudflare R2 — genuinely cheap and licence-clean, but real work · **(d)** ship MVP with **no** fallback and rely purely on the Google daily cap. My lean is **(c)**, with **(a)** worth doing in parallel since it costs only an email. **This does not block 0.3/0.4** — it blocks Stage 1.
+### 6.2 🟢 The P0 imagery fallback — **CLOSED 2026-09-01: ArcGIS Location Platform**
+
+**Resolved by the §6.6 work.** The P0 low-cost imagery fallback (master plan §5.2, and the mechanism master plan §6.6 relies on to cap Google 3D Tiles spend) is **Esri World Imagery served through ArcGIS Location Platform** — already implemented and running.
+
+Why this is the right answer rather than the alternatives I had listed:
+
+| Option previously considered | Verdict |
+|---|---|
+| **ArcGIS Location Platform** | ✅ **Chosen.** Commercial deployment licence, 2M basemap tiles/month free, no infrastructure to run, and it is satellite imagery — visually continuous with the Google 3D globe rather than a jarring switch to a street map |
+| Cesium ion | ❌ Terms ambiguous for a public ad-supported product (§2.2); would also require displaying the ion logo |
+| `tile.openstreetmap.org` | ❌ OSMF policy: unsuitable for high-traffic commercial use, withdrawal without notice. Retained **only** as a development fallback when no key is set |
+| Self-hosted Protomaps on R2 | ❌ Licence-clean and cheap, but real infrastructure to build and operate — and it buys nothing over the above |
+| No fallback at all | ❌ Leaves master plan §6.6's cost control with no mechanism |
+
+**What this gives us, in one move:** a commercially licensed satellite basemap, *and* the automatic degradation target when the Google 3D daily budget is near-exhausted or the device is low-end (master plan §6.6), *and* the keyless-boot path — with no servers and no monthly cost at MVP volume.
+
+**Sizing.** The free tier is 2,000,000 basemap tiles/month. A Cesium session at typical zoom pulls on the order of a few hundred tiles, so this comfortably covers early traffic; the ceiling should be re-measured against real sessions once we have any. Note this is a *separate* budget from Google's — the two do not interact, which is what makes it usable as an overflow target.
+
+**Caveats carried forward, not closed by this:**
+- The key cannot be validated by the app (§6.6) — tiles render even with a bogus token, so a misconfiguration is silent.
+- Tiles must **not** be cached or proxied (Agreement §3.1(d)(6)), so the fallback cannot be routed through the Worker. This matches the Google 3D Tiles decision and means the budget governor for basemaps lives at Esri's quota layer, not ours.
+- Attribution is mandatory whenever the imagery is displayed.
+
+**Master plan §6.6 correction stands.** With Google 3D Tiles billed per root tileset query (≈ per session) rather than per tile, this fallback is justified primarily as a **mobile-performance and quota measure**, not as the load-bearing cost control the plan originally assumed.
 
 ### 6.3 🟠 Ships / AISStream (§2.5)
 Confirm ships stay **out of Stage 1** so I can design the Worker as purely request-scoped (no Durable Objects). *(This repeats 0.1 question 2 — the browser-connection prohibition makes it more clear-cut than before.)*
