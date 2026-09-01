@@ -170,9 +170,6 @@ const LAYER_ALIASES = new Map([
   ['data centers', 'local-datacenters'],
   ['data centres', 'local-datacenters'],
   ['dams', 'local-dams'],
-  ['submarine cables', 'telegeography-submarine-cables'],
-  ['cables', 'telegeography-submarine-cables'],
-  ['telegeography', 'telegeography-submarine-cables'],
   ['firms', 'local-firms'],
   ['fires', 'local-firms'],
   ['active fires', 'local-firms'],
@@ -3271,7 +3268,6 @@ function cleanText(value) {
 function layerTitle(layerId) {
   if (layerId === 'local-datacenters') return 'Datacenter';
   if (layerId === 'local-dams') return 'Dam';
-  if (layerId === 'telegeography-submarine-cables') return 'Submarine Cable';
   if (layerId === 'local-firms') return 'Active Fire';
   return layerId || 'Entity';
 }

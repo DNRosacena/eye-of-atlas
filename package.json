@@ -35,7 +35,6 @@
     "doctor": "node scripts/setup-doctor.mjs",
     "dev": "vite",
     "dev:secure": "./scripts/dev-secure.sh",
-    "opensky:import": "./scripts/opensky-import-client.sh",
     "build": "vite build",
     "preview": "vite preview",
     "test": "node scripts/run-unit-tests.mjs",

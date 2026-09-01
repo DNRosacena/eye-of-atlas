@@ -50,15 +50,22 @@ test('external ownership uses boot provenance even when store and shell values m
 test('the status payload reports presence without any credential material', () => {
   const env = {
     GOOGLE_MAPS_API_KEY: 'AIzaSyFakeFakeFakeFake1234',
+    // A stray value for a provider that no longer exists must not be counted.
     OPENSKY_CLIENT_ID: 'client-id-abcdef',
-    // Secret missing: the OpenSky pair must read as NOT set.
   };
   const status = keySetupStatus(env);
   assert.equal(status.total, KEY_SETUP_KEYS.length);
   const google = status.keys.find((key) => key.id === 'google-maps');
   assert.equal(google.set, true);
-  const opensky = status.keys.find((key) => key.id === 'opensky');
-  assert.equal(opensky.set, false, 'half a credential pair is not configured');
+  assert.equal(
+    status.keys.find((key) => key.id === 'opensky'),
+    undefined,
+    'OpenSky was removed as a provider (non-commercial licence) and must not reappear',
+  );
+  // NOTE: OpenSky was the only provider with more than one env var, so the
+  // "all vars required" branch of keySetupStatus no longer has a production
+  // instance to exercise. If a multi-variable provider is added, restore a
+  // partial-credential case here.
   const serialized = JSON.stringify(status);
   assert.ok(!serialized.includes('AIzaSyFakeFakeFakeFake1234'), 'a value leaked into status');
   assert.ok(!serialized.includes('client-id-abcdef'), 'a value leaked into status');

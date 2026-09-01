@@ -176,7 +176,6 @@ const CREDIT_EXPECTATIONS = {
   'local-datacenters': /OpenStreetMap/i,
   'local-dams': /OpenStreetMap/i,
   'local-firms': /FIRMS/i,
-  'telegeography-submarine-cables': /TeleGeography/i,
   'local-neighborhoods': /DataSF|San Francisco/i,
   'weather-effects': /Open-Meteo/i,
 };
@@ -738,19 +737,19 @@ check({
 });
 
 check({
-  id: 'B2', group: 'B', desc: 'Flights proxy returns live contacts (/api/opensky)',
+  id: 'B2', group: 'B', desc: 'Flights proxy returns live contacts (/api/flights)',
   run: async () => {
-    const r = await jget('/api/opensky?lamin=24&lomin=-125&lamax=50&lomax=-66', { timeoutMs: 45000 });
+    const r = await jget('/api/flights?lamin=24&lomin=-125&lamax=50&lomax=-66', { timeoutMs: 45000 });
     if (!r.ok) return fail(`HTTP ${r.status}: ${r.text.slice(0, 120)}`);
     const n = r.json?.states?.length || 0;
-    return n > 0 ? pass(`${n} states, cache=${r.headers.get('x-opensky-cache') || 'n/a'}`) : fail('0 states returned');
+    return n > 0 ? pass(`${n} states, cache=${r.headers.get('x-flight-cache') || 'n/a'}`) : fail('0 states returned');
   },
 });
 
 check({
   id: 'B3', group: 'B', desc: 'OpenSky credentials are actually in use (not the anonymous/fallback path)',
   run: async () => {
-    const r = await jget('/api/opensky?lamin=24&lomin=-125&lamax=50&lomax=-66', { timeoutMs: 45000 });
+    const r = await jget('/api/flights?lamin=24&lomin=-125&lamax=50&lomax=-66', { timeoutMs: 45000 });
     // Header names are exact: X-OpenSky-Auth-Mode-Used / X-OpenSky-Auth-Reason.
     // (An earlier guess at these names made this check pass vacuously.)
     const reason = r.headers.get('X-OpenSky-Auth-Reason') || '';
@@ -1166,7 +1165,6 @@ check({
     id: 'D12',
     script: 'qa-overlay-baseline.mjs',
     args: ['--url', APP_URL, '--scene', 'cables', '--json', OVERLAY_JSON],
-    parse: readOverlaySummary('telegeography-submarine-cables', OVERLAY_JSON),
     timeoutMs: 900000,
   }),
 });
@@ -1396,7 +1394,7 @@ async function runBrowserGroup(record) {
     quiesced = true;
     await evalBounded(async () => {
       const dm = window.__godsEyeView.dataManager;
-      const heavy = ['cctv', 'traffic', 'flights', 'satellites', 'telegeography-submarine-cables',
+      const heavy = ['cctv', 'traffic', 'flights', 'satellites',
         'local-datacenters', 'local-dams', 'military-installations', 'earthquakes'];
       for (const id of heavy) {
         if (!dm.layers.has(id)) continue;
@@ -1649,7 +1647,7 @@ async function runBrowserGroup(record) {
     }, null, 30000);
     await new Promise((r) => setTimeout(r, 2000));
 
-    const bundled = ['local-datacenters', 'local-dams', 'telegeography-submarine-cables'];
+    const bundled = ['local-datacenters', 'local-dams'];
     const out = [];
     const stillLoading = [];
     let loadNote = '';
@@ -1657,7 +1655,7 @@ async function runBrowserGroup(record) {
       // eslint-disable-next-line no-await-in-loop
       const r = await settle(id, 45);
       const s = r.stats || {};
-      const label = id.replace(/^local-|^telegeography-/, '');
+      const label = id.replace(/^local-/, '');
       out.push(`${label}=${r.missing ? 'MISSING' : (s.count ?? 0)}`);
       // "Still loading when my budget expired" is not "empty". Under full-run
       // load these can take longer than an isolated run, and calling that a
@@ -1680,7 +1678,7 @@ async function runBrowserGroup(record) {
       await quiesce();
       const retried = [];
       for (const label of contested) {
-        const id = bundled.find((b2) => b2.replace(/^local-|^telegeography-/, '') === label);
+        const id = bundled.find((b2) => b2.replace(/^local-/, '') === label);
         if (!id) continue;
         // eslint-disable-next-line no-await-in-loop
         const r2 = await settle(id, 45);
@@ -1767,7 +1765,7 @@ async function runBrowserGroup(record) {
     // standalone (`--only C12`) nothing is on, and it would pass vacuously off
     // the static credit list — so self-arm a deterministic set first.
     const armed = (await evalBounded(() => [...(window.__godsEyeView.dataManager.getEnabledLayerIds?.() || [])], null, 20000)) || [];
-    const SELF_ARM = ['flights', 'satellites', 'earthquakes', 'telegeography-submarine-cables'];
+    const SELF_ARM = ['flights', 'satellites', 'earthquakes'];
     if (armed.length === 0) {
       for (const id of SELF_ARM) {
         // eslint-disable-next-line no-await-in-loop
@@ -2077,7 +2075,7 @@ async function preflight() {
     else env.keys.AIS = 'error';
   } catch { env.keys.AIS = 'error'; }
   try {
-    const os = await jget('/api/opensky?lamin=29&lomin=-99&lamax=31&lomax=-97', { timeoutMs: 40000 });
+    const os = await jget('/api/flights?lamin=29&lomin=-99&lamax=31&lomax=-97', { timeoutMs: 40000 });
     const reason = os.headers.get('X-OpenSky-Auth-Reason') || '';
     const used = os.headers.get('X-OpenSky-Auth-Mode-Used') || os.headers.get('X-OpenSky-Auth') || '';
     if (!os.ok) env.keys.OPENSKY = 'error';

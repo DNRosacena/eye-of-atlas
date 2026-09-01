@@ -260,10 +260,10 @@ async function main() {
       if (url.pathname === '/api/adsblol/mil') {
         return void request.respond(stubJson({ msg: 'No error', now: Date.now(), ac: [] }));
       }
-      if (url.pathname === '/api/opensky') {
+      if (url.pathname === '/api/flights') {
         return void request.respond(stubJson({ time: Math.floor(Date.now() / 1000), states: [] }));
       }
-      if (url.pathname === '/api/opensky-track') {
+      if (url.pathname === '/api/flights/track-removed') {
         return void request.respond(stubJson({ path: [] }));
       }
       if (url.pathname === '/api/openai/hud-summary') {

@@ -1,7 +1,8 @@
 /**
  * @module flights
- * @description Real-time flight tracking layer powered by the OpenSky Network API
- * (authenticated via Vite dev-server proxy at /api/opensky).
+ * @description Real-time flight tracking layer powered by adsb.lol (ODbL 1.0).
+ * (proxied at /api/flights). Coverage is REGIONAL, not global — adsb.lol is a
+ * community ADS-B network, dense over Europe/North America and sparse elsewhere.
  *
  * Rendering strategy: all aircraft are drawn as billboards in a single
  * BillboardCollection for GPU-efficient batching (handles 5000+ aircraft).
@@ -269,8 +270,8 @@ const _scratchModelBS = new Cesium.BoundingSphere(new Cesium.Cartesian3(), 1.0);
 /** Last limb taper per billboard, retained across class/ground/cockpit repaints. */
 const _billboardLimbScale = new WeakMap();
 
-/** @constant {string} API_URL - Vite proxy endpoint for OpenSky /states/all */
-const API_URL = '/api/opensky';
+/** @constant {string} API_URL - Proxy endpoint for the adsb.lol regional snapshot. */
+const API_URL = '/api/flights';
 const SOURCE_STALE_MS = 120_000;
 /** @constant {number} BACKOFF_INTERVAL - Cooldown (ms) after 429 / auth errors */
 const BACKOFF_INTERVAL = 45000; // 45s on rate limit
@@ -318,9 +319,9 @@ function _abortActiveUpdates() {
 /** @type {number|null} HTTP status of the most recent API response */
 let _lastStatus = null;
 /** @type {string} Source used by the latest successful snapshot. */
-let _lastSource = 'OpenSky Network';
+let _lastSource = 'adsb.lol';
 /** @type {string} Completeness boundary for the latest successful snapshot. */
-let _lastCoverage = 'worldwide upstream snapshot';
+let _lastCoverage = 'regional coverage — not all aircraft';
 
 function _flightApiUrl(viewer) {
   const cartographic = viewer?.camera?.positionCartographic;
@@ -348,7 +349,7 @@ let _lastTrackingRefreshOutcome = {
   epoch: 0,
   status: 'unavailable',
   ids: new Set(),
-  source: 'OpenSky Network',
+  source: 'adsb.lol',
   coverage: null,
 };
 /** @type {Cesium.Entity|null} Entity used for camera tracking */
@@ -420,7 +421,7 @@ function _contextSubjectMetadata(icao24) {
     id: icao24,
     layerId: 'flights',
     layerName: 'Live Flights',
-    source: 'OpenSky Network',
+    source: 'adsb.lol',
     label: _contactLabel(icao24, _flightData.get(icao24)),
     latitude: described.latitude,
     longitude: described.longitude,
@@ -1042,45 +1043,6 @@ function _toCleanText(value) {
  */
 function _contactLabel(icao24, info) {
   return _toCleanText(info?.callsign) || _toCleanText(info?.registration) || icao24;
-}
-
-/**
- * Map OpenSky proxy response headers into a human-readable auth error string.
- * The Vite proxy forwards `x-opensky-auth-mode-used` and `x-opensky-auth-reason`
- * headers so the client can display a meaningful diagnostic.
- * @param {object} params
- * @param {string} params.detail  - Error body text from the proxy, if any.
- * @param {string} params.authMode - Normalized auth mode header value.
- * @param {string} params.authReason - Normalized auth reason header value.
- * @returns {string} Concise error description for UI display.
- */
-function _deriveOpenSkyAuthError({ detail, authMode, authReason }) {
-  const reason = _toLowerText(authReason);
-  const mode = _toLowerText(authMode);
-
-  if (reason === 'oauth_invalid_or_missing') {
-    return 'OpenSky OAuth client missing/invalid';
-  }
-  if (reason === 'oauth_invalid_credentials') {
-    return 'OpenSky OAuth rejected credentials';
-  }
-  if (reason === 'basic_invalid_credentials') {
-    return 'OpenSky username/password rejected';
-  }
-  if (reason === 'missing_basic_creds' || reason === 'missing_oauth_and_basic_creds') {
-    return 'OpenSky auth missing';
-  }
-  if (reason === 'auth_required') {
-    return 'OpenSky auth required';
-  }
-  if (reason.startsWith('oauth_') || reason.startsWith('basic_')) {
-    return 'OpenSky auth invalid';
-  }
-  if (reason === 'forced_anonymous' || mode === 'anon') {
-    return 'OpenSky auth required';
-  }
-  if (detail) return detail;
-  return 'OpenSky auth failed';
 }
 
 /**
@@ -2952,7 +2914,7 @@ function _refreshTrailDisplay() {
 /**
  * Start the trail for a newly tracked aircraft: seed it with the short
  * dead-reckoning history (chronological), render immediately, then
- * fire-and-forget an OpenSky track backfill.
+ * (historical track backfill was removed with the OpenSky source).
  * @param {string} icao24 - ICAO 24-bit transponder address being tracked.
  */
 function _startTrail(icao24) {
@@ -3022,86 +2984,13 @@ function _startTrail(icao24) {
   }
   _refreshTrailDisplay();
 
-  const oldestFixEpochSec = history.length
-    ? Cesium.JulianDate.toDate(history[0].time).getTime() / 1000
-    : Infinity;
-  _backfillTrail(icao24, _trailBackfillToken, oldestFixEpochSec);
-}
-
-/**
- * Fire-and-forget OpenSky /tracks backfill (PRD F1). On success, splices
- * waypoints strictly older than the oldest seeded fix AHEAD of the locally
- * accumulated fine segment, capped at TRAIL_MAX_POINTS (newest kept). Any
- * failure (404/429/timeout/malformed) silently keeps the local-only trail.
- * @param {string} icao24 - ICAO 24-bit transponder address being tracked.
- * @param {number} token - Backfill token captured at request time.
- * @param {number} oldestFixEpochSec - Epoch seconds of the oldest seeded fix.
- * @returns {Promise<void>}
- */
-async function _backfillTrail(icao24, token, oldestFixEpochSec) {
-  let path = null;
-  try {
-    const response = await fetch('/api/opensky-track?icao24=' + encodeURIComponent(icao24), {
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!response.ok) return;
-    const data = await response.json();
-    path = Array.isArray(data?.path) ? data.path : null;
-  } catch {
-    return; // silent fallback to the accumulated trail
-  }
-  if (!path || token !== _trailBackfillToken || icao24 !== _trackedIcao) return;
-
-  // OpenSky track waypoints: [time, latitude, longitude, baro_altitude, true_track, on_ground]
-  // Height-datum fix (Task 6): /tracks only ever reports barometric/MSL altitude
-  // (no per-waypoint geo_altitude in this endpoint), so waypoint render height is
-  // the documented visual FALLBACK baroM + geoidHeight(waypointLat, waypointLon)
-  // — geometrically approximate, not exact, same honesty caveat as the live
-  // baro-fallback branch of pickRenderAltitudeM.
-  await ensureGeoidReady();
-  const parsed = [];
-  for (const waypoint of path) {
-    if (!Array.isArray(waypoint)) continue;
-    const [time, lat, lon, baroAlt] = waypoint;
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-    if (!Number.isFinite(time) || time >= oldestFixEpochSec) continue;
-    parsed.push({ lat, lon, baroAlt });
-  }
-  if (!parsed.length) return;
-
-  // Field-test fix (WAKE01 trail-underground, 2026-07-06 — mirror of
-  // militaryFlights.js): resolve the coarse ellipsoidal ground along the track
-  // and floor every waypoint at it so low baro segments never dive below the
-  // mesh; a no-baro waypoint (predominantly taxi/ground segments in /tracks)
-  // sits ON the surface when the floor is known.
-  // Round-2 fix (owner: "trails suddenly much shorter / not loading"): the
-  // resolve is BOUNDED (≤1.2 s), not a blocking await — a cold Re:Earth
-  // lookup across a long path could stall the paint for seconds-to-timeout.
-  // Paint with whatever cells are warm; the resolve keeps filling the cache
-  // in the background for the next paint/select.
-  await resolveGroundFloorCellsBounded(parsed);
-  // Re-check the backfill token after the await (same guard as post-fetch):
-  // tracking may have moved on while the terrain race was in flight.
-  if (token !== _trailBackfillToken || icao24 !== _trackedIcao) return;
-
-  const older = [];
-  let lastAltM = null; // carry-forward for no-baro points whose cell isn't warm yet
-  for (const { lat, lon, baroAlt } of parsed) {
-    const baroM = Number.isFinite(baroAlt) ? baroAlt + geoidHeight(lat, lon) : null;
-    let altM = floorAltitudeM(baroM, cachedGroundFloor(lat, lon));
-    // No baro + unresolved floor: hold the previous waypoint's altitude
-    // (continuity — never a dive/spike to a made-up height). Leading points
-    // with nothing to carry keep the old 10 km airborne default.
-    if (altM == null) altM = lastAltM != null ? lastAltM : 10000;
-    lastAltM = altM;
-    older.push(Cesium.Cartesian3.fromDegrees(lon, lat, altM));
-  }
-
-  _trailPositions = older.concat(_trailPositions);
-  if (_trailPositions.length > TRAIL_MAX_POINTS) {
-    _trailPositions = _trailPositions.slice(_trailPositions.length - TRAIL_MAX_POINTS);
-  }
-  _refreshTrailDisplay();
+  // Historical trail backfill removed with the OpenSky data source (its
+  // /tracks/all endpoint was OpenSky-specific and OpenSky is non-commercial —
+  // COMMERCIAL_COMPLIANCE.md §3.4). Trails are now built purely from locally
+  // accumulated fixes, which is the fallback this code already handled on any
+  // backfill failure. adsb.lol publishes traces (/api/adsblol/trace, already
+  // used by militaryFlights.js) in a different shape; repointing this at them
+  // is a Stage 1 follow-up, not part of the licensing cleanup.
 }
 
 /**
@@ -3213,7 +3102,7 @@ function _normalizeTrackedIcao(candidate) {
   return normalized || null;
 }
 
-function _isUsableOpenSkyState(state) {
+function _isUsableStateVector(state) {
   if (!Array.isArray(state) || typeof state[0] !== 'string' || !_normalizeTrackedIcao(state[0])) {
     return false;
   }
@@ -3411,7 +3300,7 @@ export function _setTrackedFlightRefreshStateForTest({
 export function _setFlightTrackingRefreshOutcomeForTest({
   status = 'accepted',
   ids = [],
-  source = 'OpenSky Network',
+  source = 'adsb.lol',
   coverage = 'test',
 } = {}) {
   const epoch = ++_trackingRefreshEpoch;
@@ -3882,7 +3771,7 @@ const flightsLayer = {
   id: 'flights',
   name: 'Live Flights',
   icon: '✈️',
-  source: 'OpenSky Network',
+  source: 'adsb.lol',
   // Browser-harness seam: isolates synthetic display-floor scenarios without
   // changing any production lifecycle or cache policy.
   _clearDisplayFloorStateForTest,
@@ -3928,8 +3817,8 @@ const flightsLayer = {
     _retryAt = 0;
     _lastError = null;
     _lastStatus = null;
-    _lastSource = 'OpenSky Network';
-    _lastCoverage = 'worldwide upstream snapshot';
+    _lastSource = 'adsb.lol';
+    _lastCoverage = 'regional coverage — not all aircraft';
     _trackedIcao = null;
     _resetTrackedSelectionState();
     _trackedEntity = null;
@@ -4080,38 +3969,21 @@ const flightsLayer = {
       _lastStatus = response.status;
       const responseSource = response.headers.get('x-flight-source');
       const responseCoverage = response.headers.get('x-flight-coverage');
-      const authMode = _toLowerText(
-        response.headers.get('x-opensky-auth-mode-used') || response.headers.get('x-opensky-auth')
-      );
-      const authReason = _toLowerText(response.headers.get('x-opensky-auth-reason'));
-
       if (response.status === 429) {
         console.warn('[Data:Flights] Rate limited, backing off to 30s');
         _backoff = true;
         _retryAt = nowMs + BACKOFF_INTERVAL;
-        _lastError = authMode && authMode !== 'anon'
-          ? 'OpenSky rate limited'
-          : 'OpenSky rate limited (anonymous)';
+        _lastError = 'Flight feed rate limited';
         return;
       }
 
       if (response.status === 401 || response.status === 403) {
-        console.warn(`[Data:Flights] OpenSky unavailable (${response.status}), backing off`);
+        // adsb.lol needs no credentials, so this should not occur; treat it as
+        // a transient upstream problem rather than an auth misconfiguration.
+        console.warn(`[Data:Flights] Flight feed unavailable (${response.status}), backing off`);
         _backoff = true;
         _retryAt = nowMs + BACKOFF_INTERVAL;
-        let detail = '';
-        try {
-          const body = await response.json();
-          updateSignal.throwIfAborted();
-          detail = typeof body?.error === 'string' ? body.error.trim() : '';
-        } catch {
-          detail = '';
-        }
-        _lastError = _deriveOpenSkyAuthError({
-          detail,
-          authMode,
-          authReason,
-        });
+        _lastError = 'Flight feed unavailable';
         return;
       }
 
@@ -4127,7 +3999,7 @@ const flightsLayer = {
         } catch {
           detail = '';
         }
-        _lastError = detail || `OpenSky HTTP ${response.status}`;
+        _lastError = detail || `Flight feed HTTP ${response.status}`;
         return;
       }
 
@@ -4136,15 +4008,15 @@ const flightsLayer = {
       if (!data || !Array.isArray(data.states)) {
         _backoff = true;
         _retryAt = nowMs + ERROR_BACKOFF_INTERVAL;
-        _lastError = 'Malformed OpenSky response';
+        _lastError = 'Malformed flight feed response';
         return;
       }
 
-      const usableStates = data.states.filter(_isUsableOpenSkyState);
+      const usableStates = data.states.filter(_isUsableStateVector);
       if (data.states.length > 0 && usableStates.length === 0) {
         _backoff = true;
         _retryAt = nowMs + ERROR_BACKOFF_INTERVAL;
-        _lastError = 'Malformed OpenSky aircraft rows';
+        _lastError = 'Malformed flight feed aircraft rows';
         return;
       }
 
@@ -4158,8 +4030,8 @@ const flightsLayer = {
       _lastError = sourceStale
         ? `Source snapshot ${Math.max(2, Math.round(sourceAgeMs / 60_000))} min old`
         : null;
-      _lastSource = responseSource || 'OpenSky Network';
-      _lastCoverage = responseCoverage || 'worldwide upstream snapshot';
+      _lastSource = responseSource || 'adsb.lol';
+      _lastCoverage = responseCoverage || 'regional coverage — not all aircraft';
       const currentIcaos = new Set();
       const acceptedSnapshotIcaos = new Set();
       const now = Cesium.JulianDate.now();
@@ -4623,7 +4495,7 @@ const flightsLayer = {
       console.warn('[Data:Flights] Fetch error:', e);
       _backoff = true;
       _retryAt = Date.now() + ERROR_BACKOFF_INTERVAL;
-      _lastError = 'OpenSky network error';
+      _lastError = 'Flight feed network error';
     } finally {
       _activeUpdateControllers.delete(resourceController);
     }
@@ -5076,7 +4948,7 @@ const flightsLayer = {
     if (outcome.status !== 'accepted') {
       return {
         status: 'source-unavailable',
-        reason: 'OpenSky snapshot unavailable',
+        reason: 'Flight snapshot unavailable',
         refreshEpoch: outcome.epoch,
         source: outcome.source,
         coverage: outcome.coverage,

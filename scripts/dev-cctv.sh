@@ -49,111 +49,6 @@ read_keychain_secret() {
   security find-generic-password -s "$service" -a "$account" -w 2>/dev/null || true
 }
 
-load_opensky_oauth_from_file() {
-  local file_path="$1"
-  if [[ -z "${file_path}" || ! -f "${file_path}" ]]; then
-    return
-  fi
-  if ! command -v node >/dev/null 2>&1; then
-    echo "warning: node not found; cannot parse OPENSKY_CREDENTIALS_FILE"
-    return
-  fi
-
-  local parsed
-  parsed="$(node -e "const fs=require('fs');const p=process.argv[1];try{const raw=JSON.parse(fs.readFileSync(p,'utf8'));const id=String(raw.clientId??raw.client_id??'').trim();const secret=String(raw.clientSecret??raw.client_secret??'').trim();process.stdout.write(id+'\\t'+secret);}catch{process.exit(1)}" "${file_path}" 2>/dev/null || true)"
-  if [[ "${parsed}" != *$'\t'* ]]; then
-    return
-  fi
-  local parsed_client_id="${parsed%%$'\t'*}"
-  local parsed_client_secret="${parsed#*$'\t'}"
-
-  if [[ -z "${OPENSKY_CLIENT_ID}" && -n "${parsed_client_id}" ]]; then
-    OPENSKY_CLIENT_ID="${parsed_client_id}"
-  fi
-  if [[ -z "${OPENSKY_CLIENT_SECRET}" && -n "${parsed_client_secret}" ]]; then
-    OPENSKY_CLIENT_SECRET="${parsed_client_secret}"
-  fi
-}
-
-resolve_opensky_credentials() {
-  OPENSKY_AUTH_MODE="$(printf '%s' "${OPENSKY_AUTH_MODE:-oauth}" | tr '[:upper:]' '[:lower:]')"
-  OPENSKY_CREDENTIALS_FILE="${OPENSKY_CREDENTIALS_FILE:-}"
-  case "${OPENSKY_AUTH_MODE}" in
-    basic|oauth|auto|anon) ;;
-    *)
-      echo "warning: invalid OPENSKY_AUTH_MODE='${OPENSKY_AUTH_MODE}', defaulting to 'oauth'"
-      OPENSKY_AUTH_MODE="oauth"
-      ;;
-  esac
-
-  OPENSKY_CLIENT_ID="${OPENSKY_CLIENT_ID:-}"
-  OPENSKY_CLIENT_SECRET="${OPENSKY_CLIENT_SECRET:-}"
-  OPENSKY_USERNAME="${OPENSKY_USERNAME:-}"
-  OPENSKY_PASSWORD="${OPENSKY_PASSWORD:-}"
-
-  if [[ "${OPENSKY_AUTH_MODE}" == "basic" || "${OPENSKY_AUTH_MODE}" == "auto" ]] && [[ -z "${OPENSKY_USERNAME}" ]]; then
-    for svc in "opensky-network" "opensky"; do
-      for acct in "username" "user" "login" "email" "default"; do
-        OPENSKY_USERNAME="$(read_keychain_secret "${svc}" "${acct}")"
-        if [[ -n "${OPENSKY_USERNAME}" ]]; then
-          break 2
-        fi
-      done
-    done
-  fi
-  if [[ "${OPENSKY_AUTH_MODE}" == "basic" || "${OPENSKY_AUTH_MODE}" == "auto" ]] && [[ -z "${OPENSKY_PASSWORD}" ]]; then
-    for svc in "opensky-network" "opensky"; do
-      for acct in "password" "pass" "token" "secret" "default"; do
-        OPENSKY_PASSWORD="$(read_keychain_secret "${svc}" "${acct}")"
-        if [[ -n "${OPENSKY_PASSWORD}" ]]; then
-          break 2
-        fi
-      done
-    done
-  fi
-  if [[ "${OPENSKY_AUTH_MODE}" == "oauth" || "${OPENSKY_AUTH_MODE}" == "auto" ]] && [[ -n "${OPENSKY_CREDENTIALS_FILE}" ]]; then
-    load_opensky_oauth_from_file "${OPENSKY_CREDENTIALS_FILE}"
-  fi
-  if [[ "${OPENSKY_AUTH_MODE}" == "oauth" || "${OPENSKY_AUTH_MODE}" == "auto" ]] && [[ -z "${OPENSKY_CLIENT_ID}" ]]; then
-    for svc in "opensky-network" "opensky"; do
-      for acct in "client_id" "client-id" "client" "api-key"; do
-        OPENSKY_CLIENT_ID="$(read_keychain_secret "${svc}" "${acct}")"
-        if [[ -n "${OPENSKY_CLIENT_ID}" ]]; then
-          break 2
-        fi
-      done
-    done
-  fi
-  if [[ "${OPENSKY_AUTH_MODE}" == "oauth" || "${OPENSKY_AUTH_MODE}" == "auto" ]] && [[ -z "${OPENSKY_CLIENT_SECRET}" ]]; then
-    for svc in "opensky-network" "opensky"; do
-      for acct in "client_secret" "client-secret" "secret"; do
-        OPENSKY_CLIENT_SECRET="$(read_keychain_secret "${svc}" "${acct}")"
-        if [[ -n "${OPENSKY_CLIENT_SECRET}" ]]; then
-          break 2
-        fi
-      done
-    done
-  fi
-
-  case "${OPENSKY_AUTH_MODE}" in
-    basic)
-      OPENSKY_CLIENT_ID=""
-      OPENSKY_CLIENT_SECRET=""
-      ;;
-    oauth)
-      OPENSKY_USERNAME=""
-      OPENSKY_PASSWORD=""
-      ;;
-    anon)
-      OPENSKY_CLIENT_ID=""
-      OPENSKY_CLIENT_SECRET=""
-      OPENSKY_USERNAME=""
-      OPENSKY_PASSWORD=""
-      ;;
-  esac
-}
-
-resolve_opensky_credentials
 
 echo "Starting God's Eye View with CCTV source pack..."
 echo "URL: http://localhost:${PORT}/"
@@ -163,52 +58,11 @@ if [[ -f "${CCTV_SOURCES_FILE}" ]]; then
 else
   echo "CCTV_SOURCES_FILE: ${CCTV_SOURCES_FILE} (missing, using Austin open-data feed discovery)"
 fi
-echo "OpenSky auth mode: ${OPENSKY_AUTH_MODE}"
-if [[ -n "${OPENSKY_CREDENTIALS_FILE}" ]]; then
-  if [[ -f "${OPENSKY_CREDENTIALS_FILE}" ]]; then
-    echo "OpenSky credentials file: ${OPENSKY_CREDENTIALS_FILE}"
-  else
-    echo "OpenSky credentials file: ${OPENSKY_CREDENTIALS_FILE} (missing)"
-  fi
-fi
-case "${OPENSKY_AUTH_MODE}" in
-  basic)
-    if [[ -n "${OPENSKY_USERNAME}" && -n "${OPENSKY_PASSWORD}" ]]; then
-      echo "OpenSky basic auth: configured"
-    else
-      echo "OpenSky basic auth: missing credentials"
-    fi
-    ;;
-  oauth)
-    if [[ -n "${OPENSKY_CLIENT_ID}" && -n "${OPENSKY_CLIENT_SECRET}" ]]; then
-      echo "OpenSky OAuth: configured"
-    else
-      echo "OpenSky OAuth: missing client credentials"
-    fi
-    ;;
-  auto)
-    if [[ -n "${OPENSKY_CLIENT_ID}" && -n "${OPENSKY_CLIENT_SECRET}" ]]; then
-      echo "OpenSky auto auth: OAuth configured"
-    elif [[ -n "${OPENSKY_USERNAME}" && -n "${OPENSKY_PASSWORD}" ]]; then
-      echo "OpenSky auto auth: basic configured"
-    else
-      echo "OpenSky auto auth: no credentials found"
-    fi
-    ;;
-  anon)
-    echo "OpenSky auth: disabled (anonymous mode)"
-    ;;
-esac
+echo "Flights: adsb.lol (keyless, ODbL 1.0) - regional coverage"
 
 GOOGLE_MAPS_API_KEY="${GOOGLE_MAPS_API_KEY}" \
 CCTV_SOURCES_FILE="${CCTV_SOURCES_FILE}" \
 CCTV_PREFER_AUSTIN="${CCTV_PREFER_AUSTIN}" \
 CCTV_AUSTIN_MAX_SOURCES="${CCTV_AUSTIN_MAX_SOURCES}" \
 CCTV_MAX_SOURCES="${CCTV_MAX_SOURCES}" \
-OPENSKY_AUTH_MODE="${OPENSKY_AUTH_MODE}" \
-OPENSKY_CREDENTIALS_FILE="${OPENSKY_CREDENTIALS_FILE}" \
-OPENSKY_CLIENT_ID="${OPENSKY_CLIENT_ID}" \
-OPENSKY_CLIENT_SECRET="${OPENSKY_CLIENT_SECRET}" \
-OPENSKY_USERNAME="${OPENSKY_USERNAME}" \
-OPENSKY_PASSWORD="${OPENSKY_PASSWORD}" \
 npm run dev -- --host "${HOST}" --port "${PORT}" --force

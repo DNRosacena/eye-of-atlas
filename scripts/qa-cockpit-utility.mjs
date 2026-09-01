@@ -36,7 +36,7 @@ page.on('pageerror', (error) => consoleErrors.push(error.message));
 page.on('response', (response) => {
   const url = new URL(response.url());
   const expectedOptionalTrackMiss = response.status() === 404
-    && url.pathname === '/api/opensky-track';
+    && url.pathname === '/api/flights/track-removed';
   if (
     url.origin === new URL(appUrl).origin
     && response.status() >= 400
@@ -80,7 +80,7 @@ try {
       });
       return;
     }
-    if (url.origin === new URL(appUrl).origin && url.pathname === '/api/opensky-track') {
+    if (url.origin === new URL(appUrl).origin && url.pathname === '/api/flights/track-removed') {
       request.respond({
         status: 200,
         contentType: 'application/json',

@@ -5,7 +5,13 @@
 **Auditor:** Claude Code (implementation agent), reviewed by the project owner
 **Codebase audited:** God's Eye View @ `6d83bb6` (see [docs/GEV-INSPECTION.md](docs/GEV-INSPECTION.md))
 **Authority:** Eye of Atlas Master Plan §4
-**Status:** 🟡 **Draft — not yet signed off.** Five items need owner decisions (§6).
+**Status:** 🟢 **Class-D removal LANDED 2026-09-01** (commit `chore: commercial data cleanup`). Two owner decisions resolved; two remain open (§6).
+
+**What changed since this audit was written:**
+- Weather **cut from MVP** (owner decision) — Open-Meteo removed, §6.1 closed.
+- Ships **out of Stage 1** (owner decision) — §6.3 closed.
+- All four Class-D sources are **removed from the codebase and verified absent** from the production build. CI now fails if any is reintroduced.
+- ⚠️ **New, unaudited:** upstream v0.1.0 added a keyless **Esri World Imagery** basemap, which is now the default when no Google/Cesium credential is present. Its terms have **not** been reviewed — see §6.6.
 
 > ⚠️ **This is not legal advice.** It is an engineering audit trail recording what each provider's official terms said on the date checked, what our code does, and what we propose. Items marked **[FLAG — legal review]** warrant a lawyer's eyes before monetisation.
 
@@ -269,6 +275,9 @@ Confirm ships stay **out of Stage 1** so I can design the Worker as purely reque
 ### 6.4 🟠 Nominatim at consumer scale (§2.6)
 Accept Nominatim for MVP with aggressive caching and revisit if traffic grows, or design for an alternative geocoder from the start? My lean: **accept for MVP** — we are not primarily a geocoder, and search volume per session is low — but cache hard and keep the seam clean.
 
+### 6.6 🟠 Esri World Imagery — new, unaudited (found 2026-09-01)
+Upstream v0.1.0 introduced a keyless **Esri World Imagery** basemap (`Esri, Vantor, Earthstar Geographics, and the GIS User Community`) as the default when no Google or Cesium credential is present. It is now the basemap most users would see. **Its terms have not been reviewed**, and ArcGIS basemap services generally require an ArcGIS account and carry their own usage limits for commercial use. This interacts directly with the unresolved §6.2 fallback question — it may be the answer, or another item to remove. **Audit before launch.**
+
 ### 6.5 🟢 ODbL share-alike — **[FLAG — legal review]**
 My read (§3.2) is that we are clear because we render and discard rather than publish derived databases. Low urgency, but you asked to be told when something warrants a lawyer. Two future features would change the analysis: a data-export button, or persisting adsb.lol/OSM results into a queryable store.
 
@@ -304,13 +313,13 @@ My read (§3.2) is that we are clear because we render and discard rather than p
 
 | § | Requirement | Status |
 |---|---|---|
-| 1 | Remove TeleGeography folder + loaders | 🔵 Surface mapped (§3.4) — removal proposed in 0.3 |
-| 2 | Remove/disable OpenSky; adsb.lol primary; UI caveat | 🔵 Surface mapped; `X-Flight-Coverage` header already exists to drive the caveat |
-| 3 | Replace Google News RSS with GDELT | 🔵 Surface mapped; GDELT already implemented as fallback |
+| 1 | Remove TeleGeography folder + loaders | 🟢 **DONE** — data, module, layer registration, credits, voice enums, benchmark profile and QA scripts all removed; absent from `dist/` |
+| 2 | Remove/disable OpenSky; adsb.lol primary; UI caveat | 🟢 **DONE** — `/api/opensky*` replaced by `/api/flights` (adsb.lol only); OAuth machinery, credentials, scripts and Provider Settings card removed. Layer row reads `adsb.lol · regional coverage - not all aircraft`, verified in-browser with 372 live aircraft |
+| 3 | Replace Google News RSS with GDELT | 🟢 **DONE** — RSS branch and its three parser helpers removed; GDELT is the sole source and its required citation link is in the attribution panel |
 | 4 | Cut CCTV, radio, GBFS, TomTom from MVP | 🔵 Confirmed, all Class C/E |
-| 5 | Verify AISStream terms in writing | 🔴 **Still no formal ToS**; browser connections prohibited → keep ships off |
-| 6 | Wire required attributions into a visible UI | 🟢 **GEV already provides the mechanism**; edit list in §4 |
+| 5 | Verify AISStream terms in writing | 🔴 **Still no formal ToS.** Ships confirmed out of Stage 1 by the owner; the layer remains present but off, and the Worker is designed request-scoped so nothing depends on it |
+| 6 | Wire required attributions into a visible UI | 🟢 **DONE** — OpenSky, TeleGeography, Google News and Open-Meteo credits removed; adsb.lol promoted to the primary flight credit with its coverage caveat. Verified in the rendered attribution panel |
 | 7 | Enforce provider rules in the proxy | 🔵 Consolidated in §5 as input to 0.3(b) |
-| 8 | Produce `COMMERCIAL_COMPLIANCE.md` | 🟢 **This document** — pending sign-off on §6 |
+| 8 | Produce `COMMERCIAL_COMPLIANCE.md` | 🟢 **This document**, updated as Part A landed |
 
 🟢 done · 🔵 ready for 0.3 · 🔴 blocked on external facts

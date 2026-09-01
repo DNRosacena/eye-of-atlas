@@ -366,35 +366,17 @@ export class CockpitCloudEffectsController {
       return this.weather;
     }
 
-    this.abort?.abort();
-    this.abort = new AbortController();
-    const params = new URLSearchParams({
-      latitude: point.latitude.toFixed(5),
-      longitude: point.longitude.toFixed(5),
-    });
-    this.pending = fetch(`/api/weather-effects?${params}`, { signal: this.abort.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`Cloud weather unavailable (${response.status})`);
-        const payload = await response.json();
-        if (!payload?.weather) throw new Error('Cloud weather observation unavailable');
-        this.weather = payload.weather;
-        this.fetchedAt = Date.now();
-        this.anchor = point;
-        this.applyWeather(payload.weather, point.altitudeM);
-        this.canvas.dataset.sourceStatus = payload.status || 'ready';
-        return payload.weather;
-      })
-      .catch((error) => {
-        if (error?.name !== 'AbortError') {
-          this.targetStrength = 0;
-          this.canvas.dataset.sourceStatus = 'unavailable';
-        }
-        return null;
-      })
-      .finally(() => {
-        this.pending = null;
-        this.abort = null;
-      });
+    // Live weather removed: Open-Meteo's free API forbids ad-supported use
+    // (COMMERCIAL_COMPLIANCE.md §2.1) and no commercially licensed replacement
+    // has been chosen yet. The cloud-effects renderer is left INTACT and simply
+    // has no observation to drive it, which is the same "unavailable" state it
+    // already handled on any fetch failure — so clouds stay off rather than the
+    // cockpit breaking. Restoring this needs only a licensed weather source
+    // wired back into this method.
+    this.targetStrength = 0;
+    this.canvas.dataset.sourceStatus = 'unavailable';
+    this.pending = null;
+    return null;
     return this.pending;
   }
 

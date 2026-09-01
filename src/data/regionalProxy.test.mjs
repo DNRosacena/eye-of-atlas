@@ -50,7 +50,11 @@ test('new data proxies install the same routes in dev and preview servers', () =
     'rocket-launches-proxy',
     'military-installations-proxy',
     'regional-brief-proxy',
-    'weather-effects-proxy',
+    // weather-effects-proxy removed with Open-Meteo (free API forbids
+    // ad-supported use). flights-proxy replaces the dev-only opensky-proxy and
+    // installs on both hooks so `vite preview` no longer serves index.html for
+    // this route.
+    'flights-proxy',
   ]) {
     assert.equal(typeof byName.get(name)?.configureServer, 'function', `${name} dev hook`);
     assert.equal(typeof byName.get(name)?.configurePreviewServer, 'function', `${name} preview hook`);

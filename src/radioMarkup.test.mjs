@@ -183,7 +183,11 @@ test('no unchanged Realtime tool definition drifts silently', () => {
     .update(JSON.stringify(unchanged))
     .digest('hex')
     .slice(0, 16);
-  assert.equal(digest, '802ed694b8887b88', 'an unchanged Realtime tool definition drifted');
+  // Re-pinned 2026-09-01: the layer-id enums shared by these tools no longer
+  // list the submarine-cable layer id, because that layer was removed for
+  // licensing reasons. The digest guards against UNINTENDED drift; this change
+  // was intended and is recorded in COMMERCIAL_COMPLIANCE.md.
+  assert.equal(digest, '19c1fb438316907e', 'an unchanged Realtime tool definition drifted');
 });
 
 test('Radio volume and mission speed share the Sharpen slider visual language', () => {

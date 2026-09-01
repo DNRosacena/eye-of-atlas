@@ -63,31 +63,12 @@ test('doctor selects a Windows-safe npm process without changing Unix behavior',
   assert.deepEqual(npmProcessSpec('linux'), { command: 'npm', shell: false });
 });
 
-test('doctor recognizes every OpenSky OAuth keychain alias used by dev-fresh', () => {
-  assert.deepEqual(
-    credential('OPENSKY_CLIENT_ID').keychain,
-    [
-      ['opensky-network', 'client_id'],
-      ['opensky-network', 'client-id'],
-      ['opensky-network', 'client'],
-      ['opensky-network', 'api-key'],
-      ['opensky', 'client_id'],
-      ['opensky', 'client-id'],
-      ['opensky', 'client'],
-      ['opensky', 'api-key'],
-    ],
-  );
-  assert.deepEqual(
-    credential('OPENSKY_CLIENT_SECRET').keychain,
-    [
-      ['opensky-network', 'client_secret'],
-      ['opensky-network', 'client-secret'],
-      ['opensky-network', 'secret'],
-      ['opensky', 'client_secret'],
-      ['opensky', 'client-secret'],
-      ['opensky', 'secret'],
-    ],
-  );
+test('doctor no longer advertises OpenSky credentials', () => {
+  // OpenSky was removed as a data source: its licence is non-commercial and
+  // explicitly prohibits ad-supported use (COMMERCIAL_COMPLIANCE.md §3.4).
+  // Flights come from adsb.lol, which needs no credentials at all.
+  assert.equal(credential('OPENSKY_CLIENT_ID'), undefined);
+  assert.equal(credential('OPENSKY_CLIENT_SECRET'), undefined);
 });
 
 test('Pinokio-scoped diagnosis ignores Keychain items its start path does not import', () => {
@@ -153,8 +134,6 @@ test('doctor describes the credential ladder without exposing values', () => {
     AISSTREAM_API_KEY: { configured: false },
     FIRMS_MAP_KEY: { configured: false },
     TOMTOM_API_KEY: { configured: false },
-    OPENSKY_CLIENT_ID: { configured: false },
-    OPENSKY_CLIENT_SECRET: { configured: false },
     LL2_API_TOKEN: { configured: true, source: 'environment' },
   };
   const capabilities = buildCapabilitySummary(credentials);
@@ -162,7 +141,8 @@ test('doctor describes the credential ladder without exposing values', () => {
   assert.match(capabilities.map, /Bing and world-terrain stacks/);
   assert.equal(capabilities.voice, 'available');
   assert.match(capabilities.missions, /token allowance/);
-  assert.equal(capabilities.flights, 'OpenSky OAuth credentials not configured');
+  assert.match(capabilities.flights, /adsb\.lol/);
+  assert.match(capabilities.flights, /regional coverage/);
 
   const report = formatSetupReport({
     ready: true,
@@ -196,13 +176,9 @@ test('doctor sends Keychain-backed reports to dev-fresh and describes OpenSky as
     'AISSTREAM_API_KEY',
     'FIRMS_MAP_KEY',
     'TOMTOM_API_KEY',
-    'OPENSKY_CLIENT_ID',
-    'OPENSKY_CLIENT_SECRET',
     'LL2_API_TOKEN',
   ].map((name) => [name, { configured: false }]));
   credentials.GOOGLE_MAPS_API_KEY = { configured: true, source: 'macOS Keychain' };
-  credentials.OPENSKY_CLIENT_ID = { configured: true, source: 'environment' };
-  credentials.OPENSKY_CLIENT_SECRET = { configured: true, source: 'environment' };
   const capabilities = buildCapabilitySummary(credentials);
   const output = formatSetupReport({
     ready: true,
@@ -214,9 +190,10 @@ test('doctor sends Keychain-backed reports to dev-fresh and describes OpenSky as
   });
   assert.match(output, /Run \.\/scripts\/dev-fresh\.sh/);
   assert.doesNotMatch(output, /Run npm run dev/);
-  assert.match(capabilities.flights, /credentials present/);
-  assert.match(capabilities.flights, /runtime mode and validity not verified/);
-  assert.doesNotMatch(capabilities.flights, /polling/);
+  // Flights need no credentials now, so the line is a constant statement of
+  // source and coverage rather than a credential-presence report.
+  assert.match(capabilities.flights, /adsb\.lol/);
+  assert.doesNotMatch(capabilities.flights, /credentials/);
 });
 
 test('doctor never calls a dependency-missing setup ready', () => {
@@ -227,8 +204,6 @@ test('doctor never calls a dependency-missing setup ready', () => {
     'AISSTREAM_API_KEY',
     'FIRMS_MAP_KEY',
     'TOMTOM_API_KEY',
-    'OPENSKY_CLIENT_ID',
-    'OPENSKY_CLIENT_SECRET',
     'LL2_API_TOKEN',
   ].map((name) => [name, { configured: false }]));
   const output = formatSetupReport({

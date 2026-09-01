@@ -31,19 +31,21 @@ third-party providers at runtime, are owned by their respective sources and
 are NOT licensed under MIT. They are included/visualized for convenience and
 remain subject to their own licenses and terms. Notably:
 
-  - TeleGeography Submarine Cable Map (src/data/local_data/
-    telegeography_submarine_cables/): CC BY-NC-SA 3.0 — NonCommercial +
-    ShareAlike. NOT for commercial use. If you use this project commercially,
-    remove these files or obtain a commercial license from TeleGeography.
   - Datacenters and Dams (OpenStreetMap / Open Infrastructure Map extracts):
     Open Database License (ODbL) 1.0 — attribution + share-alike on the data.
   - NASA FIRMS active-fire snapshot: CC0 / U.S. public domain (citation
     requested).
 
-Live sources (Google Maps, OpenSky, adsb.lol, AISStream, CelesTrak, USGS,
-OSM Overpass, City of Austin, GBFS) are fetched at runtime under each
-provider's terms; some (e.g. Google Maps, OpenSky) restrict commercial use
-and require you to supply your own credentials.
+Live sources (Google Maps, adsb.lol, AISStream, CelesTrak, USGS, OSM
+Overpass/Nominatim, GDELT, City of Austin, GBFS, Esri) are fetched at runtime
+under each provider's terms; some (e.g. Google Maps) are metered and require
+you to supply your own credentials.
+
+Eye of Atlas has REMOVED the data sources whose terms forbid use in a
+monetised product: the TeleGeography submarine-cable dataset (CC BY-NC-SA,
+NonCommercial), OpenSky (non-commercial; prohibits ad-supported use), Google
+News RSS (personal use only), and Open-Meteo's free API (forbids ad-supported
+use). Do not reintroduce them without a written commercial licence.
 
 In short: the MIT grant does not extend to any third-party data. See
 DATA_SOURCES.md for the full per-source license + attribution summary, and
