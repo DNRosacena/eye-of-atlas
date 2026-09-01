@@ -32,3 +32,6 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Cloudflare API token (local only, never committed)
+.cloudflare.env
