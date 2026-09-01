@@ -241,7 +241,7 @@ test('Cockpit owns a focused shared Display portal and compact Radio controls', 
   assert.doesNotMatch(cockpitRadio[0], /context-radio-details-btn|radio-filter|radio-tuner/);
   assert.match(css, /\.cockpit-utility-controls[\s\S]*?top:\s*var\(--cockpit-utility-top/);
   assert.match(css, /\[data-cockpit-launcher="display"\]\s*\{\s*width:\s*var\(--left-collapsed-width, 176px\)/);
-  assert.match(css, /--display-panel-expanded-width:\s*272px/);
+  assert.match(css, /--display-panel-expanded-width:\s*340px/);
   assert.match(css, /#pp-toggles\s*\{[\s\S]*?--pp-expanded-width:\s*var\(--display-panel-expanded-width\)/);
   assert.match(css, /is-expanded:has\(\[data-cockpit-launcher="display"\]\)\s*\{[\s\S]*?width:\s*var\(--display-panel-expanded-width\)/);
   assert.doesNotMatch(ui, /--cockpit-display-expanded-width|dataPanelWidth/);
@@ -255,8 +255,8 @@ test('Cockpit owns a focused shared Display portal and compact Radio controls', 
   // These two widths size Cockpit Radio and nothing else. They were named for
   // the Map Stack panel that once shared them; a Radio-specific name is what
   // keeps a later Map Stack cleanup from silently resizing Radio.
-  assert.match(css, /--cockpit-radio-collapsed-width:\s*148px/);
-  assert.match(css, /--cockpit-radio-expanded-width:\s*232px/);
+  assert.match(css, /--cockpit-radio-collapsed-width:\s*186px/);
+  assert.match(css, /--cockpit-radio-expanded-width:\s*290px/);
   assert.doesNotMatch(css, /--map-stack-(?:collapsed|expanded)-width/);
   assert.doesNotMatch(html, /id="stack-panel"/, 'the retired Map Stack panel must not remain in Cockpit layout');
   assert.match(css, /\[data-cockpit-launcher="radio"\]\s*\{\s*width:\s*var\(--cockpit-radio-collapsed-width, 148px\)/);
