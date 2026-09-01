@@ -11,7 +11,7 @@
 - Weather **cut from MVP** (owner decision) — Open-Meteo removed, §6.1 closed.
 - Ships **out of Stage 1** (owner decision) — §6.3 closed.
 - All four Class-D sources are **removed from the codebase and verified absent** from the production build. CI now fails if any is reintroduced.
-- ⚠️ **New, unaudited:** upstream v0.1.0 added a keyless **Esri World Imagery** basemap, which is now the default when no Google/Cesium credential is present. Its terms have **not** been reviewed — see §6.6.
+- 🔴 **Esri World Imagery audited (§6.6): NOT licensed for commercial use as currently called.** Upstream v0.1.0 made it the default keyless basemap. The keyless endpoint is Noncommercial-only under the Esri MLA. A licensed path exists (ArcGIS Location Platform, free tier, commercial deployment licence) — **owner decision required before any public deploy.**
 
 > ⚠️ **This is not legal advice.** It is an engineering audit trail recording what each provider's official terms said on the date checked, what our code does, and what we propose. Items marked **[FLAG — legal review]** warrant a lawyer's eyes before monetisation.
 
@@ -60,12 +60,14 @@ Their definition of commercial use is explicit and names our exact model:
 
 ### 🔴 2.2 The P0 "2D/low-cost imagery fallback" has **no confirmed source**
 
-Plan §5.2 lists a 2D/low-cost imagery fallback as **P0**, and §6.6 makes it the mechanism that caps Google 3D Tiles spend. It suggests "Cesium ion free imagery / OSM". **Both are now in doubt:**
+Master plan §5.2 lists a 2D/low-cost imagery fallback as **P0**, and master plan §6.6 makes it the mechanism that caps Google 3D Tiles spend. It suggests "Cesium ion free imagery / OSM". **Both are now in doubt:**
 
 - **Cesium ion** — the ToS is enterprise-oriented and ambiguous for our case: the licence *"does not permit you to include ion in your own solution that you make commercially available to other organizations"*, and the service *"may not be operated … as, or to perform, a service for or on behalf of any third parties."* Whether a free public ad-supported website is "commercially available to other organizations" is genuinely unclear. Separately, **the "Cesium ion" logo must be prominently displayed** on the main application window. → reclassified **C → E**.
 - **`tile.openstreetmap.org`** — the OSMF tile usage policy states access *"may be withdrawn at any point"*, blocks occur *"without prior notice"*, and it is **unsuitable for mission-critical commercial services**; they direct commercial/high-traffic sites to alternative providers or self-hosting.
 
-**Impact:** the cost-control architecture in §6.6 depends on a fallback we do not yet have a licensed source for. This is a **Stage 1 blocker**, not a Stage 0 one, but it must be resolved before we rely on the §6.6 budget governor. → **Owner decision required, §6.2.**
+**Impact:** the cost-control architecture in master plan §6.6 depends on a fallback we do not yet have a licensed source for. This is a **Stage 1 blocker**, not a Stage 0 one. → **Owner decision required, §6.2.**
+
+> **Update 2026-09-01:** §6.6 below identifies a likely answer — **ArcGIS Location Platform**'s free tier (2M basemap tiles/month) carries a commercial deployment licence, giving us a licensed satellite basemap and the cost-capping fallback in one move, with no infrastructure to run.
 
 ### 🔴 2.3 Gemini's free tier trains on user input, with human review
 
@@ -215,7 +217,8 @@ Attribution strings are quoted from `src/data/dataCredits.js` where GEV already 
 | **AISStream.io** | **Still no formal ToS** (unchanged since the plan). New constraints found: *"Direct browser connections are not permitted"*; *"up to three open connections per originating IP and three subscribed connections per account"* | ✅ | `src/data/aisLiveVessels.js:55,1657`; `src/data/aisStreamAdapter.js`; `src/data/aisWatchdog.js`; proxy `vite.config.js` `aisLiveProxy` + WebSocket `:6232`. Env `AISSTREAM_API_KEY` + 4 tuning vars | **Keep ships out of Stage 1.** No formal ToS is unacceptable risk for a monetised product, and the browser prohibition forces Durable Objects. Revisit only with written terms or a different AIS provider |
 | **Cesium ion** | ToS ambiguous for a public ad-supported site (§2.2). **ion logo must be prominently displayed** | ✅ | `src/main.js:77-79`; `src/mapStackController.js`; `vite.config.js:7372` (`CESIUM_ION_TOKEN` **inlined into the bundle**) | **Do not depend on it for the P0 fallback** until clarified. Owner decision §6.2 |
 | **City CCTV — Austin / Caltrans / TfL** | Three different per-city regimes. TfL requires a specific compound string incl. **OS © Crown copyright**. Privacy/UX optics on a consumer product | ⬜ | `src/data/cctv.js` (198 KB) + 5 helper modules; proxy `vite.config.js:4492-4716`; `config/cctv_sources.*.json`; credits `dataCredits.js:110-133` | **Cut from MVP** as plan §4.3 already directs. No further verification needed unless we revive it |
-| **`tile.openstreetmap.org`** | OSMF policy: unsuitable for high-traffic commercial; withdrawal without notice | ✅ | `src/mapStackController.js:261` | Fine for local dev; **not** a production fallback. §6.2 |
+| **`tile.openstreetmap.org`** | OSMF policy: unsuitable for high-traffic commercial; withdrawal without notice | ✅ | `src/mapStackController.js` (OSM stack + Esri failure fallback) | Fine for local dev; **not** a production fallback. §6.2 |
+| **Esri World Imagery** (keyless `services.arcgisonline.com`) | **Class D as called** — Esri MLA / Terms of Use §2.2 restrict to Noncommercial Use (no income generated). Now the DEFAULT basemap | ✅ | `src/mapStackController.js:51-59`, `:327`; default at `src/main.js:177`, `:188` | **Switch to ArcGIS Location Platform** (API key, free tier, commercial licence) or remove. §6.6 |
 | **Gemini free tier** (Stage 3) | Free-tier input used for training, human review possible (§2.3) | ✅ | Not yet in our codebase | Proceed, but the privacy policy must disclose it explicitly before Ask Atlas ships |
 
 ---
@@ -275,8 +278,51 @@ Confirm ships stay **out of Stage 1** so I can design the Worker as purely reque
 ### 6.4 🟠 Nominatim at consumer scale (§2.6)
 Accept Nominatim for MVP with aggressive caching and revisit if traffic grows, or design for an alternative geocoder from the start? My lean: **accept for MVP** — we are not primarily a geocoder, and search volume per session is low — but cache hard and keep the seam clean.
 
-### 6.6 🟠 Esri World Imagery — new, unaudited (found 2026-09-01)
-Upstream v0.1.0 introduced a keyless **Esri World Imagery** basemap (`Esri, Vantor, Earthstar Geographics, and the GIS User Community`) as the default when no Google or Cesium credential is present. It is now the basemap most users would see. **Its terms have not been reviewed**, and ArcGIS basemap services generally require an ArcGIS account and carry their own usage limits for commercial use. This interacts directly with the unresolved §6.2 fallback question — it may be the answer, or another item to remove. **Audit before launch.**
+### 6.6 🔴 Esri World Imagery — **AUDITED 2026-09-01: not licensed for our use**
+
+Upstream v0.1.0 made a keyless **Esri World Imagery** basemap the default when no Google or Cesium credential is configured. On a public deploy without a Google key, that is the imagery **every visitor sees**. It has now been audited, and the finding is a removal-class one.
+
+**What the code actually calls** (`src/mapStackController.js:51`):
+`https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer` — the classic ArcGIS Online tile service, no API key, fetched **direct from the browser** via `Cesium.ArcGisMapServerImageryProvider`.
+
+**Governing terms.** The ArcGIS Online item's own metadata states the licence in machine-readable form (`/sharing/rest/content/items/10df2279f9684e4a9f6a7f08febac2a9?f=json`):
+
+> `licenseInfo`: "This work is licensed under the **Esri Master License Agreement**."
+> `accessInformation`: "Esri, **Vantor**, Earthstar Geographics, and the GIS User Community"
+
+And the [Esri Web Site and Service Terms of Use](https://www.esri.com/en-us/legal/terms/web-site-service) §2.2 defines the boundary:
+
+> **"Noncommercial Use"** means "Your authorized use of the Services wherein you provide the Services to third parties at no charge, and that You and/or Your third party customers **do not generate income**".
+
+and the Services "may not be **reproduced or transmitted for commercial purposes**, in any form or by any means … except as expressly permitted in writing by Esri." Commercial use requires a separate licence agreement and fee.
+
+**Determination: Class D as currently called.** This is the same test that disqualified Open-Meteo — an ad-supported product generates income, so it is not Noncommercial Use. Free to *access* is not the same as free to *use commercially*.
+
+> ⚠️ Note this contradicts upstream's `DATA_SOURCES.md`, which described the service as "usable in public-facing apps with attribution". That row has been corrected in this fork.
+
+**There is a clean, cheap fix: [ArcGIS Location Platform](https://location.arcgis.com/).** Different service, different endpoint, different agreement — and it explicitly carries a **commercial deployment licence**. Its free tier is **2,000,000 basemap tiles/month** (or 1,000 basemap sessions/month), no credit card, API key required. That is generous enough for MVP traffic and it makes Esri **Class C** rather than D.
+
+If adopted, the [ArcGIS Location Platform Agreement](https://www.esri.com/content/dam/esrisites/en-us/media/legal/platform/platform-legal.pdf) (E204, revised 2025-11-21) binds us to obligations that mirror Google's — worth noting because they land in the same places in our architecture:
+
+| Clause | Obligation |
+|---|---|
+| §3.1(d)(4) | **Attribution is mandatory** — acknowledge Esri and its licensors as the source |
+| §3.1(d)(6) | **No caching or storing** tiles beyond what the caching headers permit → the Worker must pass basemap requests through untouched, exactly as with Google (§5) |
+| §3.1(d)(1) | No rebranding/cobranding, no redistribution to third parties |
+| §3.1(d)(3) | Visualization only, within our own application |
+| §3.1(d)(2) | One request serves one user — no fan-out of a single fetch |
+| §3.2 | Third-party data licensors may flow down **additional** attribution terms |
+
+**This is also a strong candidate answer to §6.2** (the P0 low-cost imagery fallback that had no licensed source). Location Platform's free tier would give us a commercially licensed satellite basemap *and* the cost-capping fallback in one move — which is better than the Protomaps self-hosting route I previously leaned toward, because it needs no infrastructure.
+
+**Attribution defect found and fixed.** Our hardcoded credit read *"Esri, **Maxar**, Earthstar Geographics…"* while the service's own declared attribution now reads *"Esri, **Vantor**, …"* — Maxar rebranded and Esri updated the service. Corrected in `src/mapStackController.js:53`, since the attribution must name the actual licensor.
+
+**Owner decision required:**
+- **(a)** Adopt **ArcGIS Location Platform** with an API key → Esri becomes Class C, and §6.2 is answered. *My recommendation.* Requires a free Esri account and a referrer-restricted key, handled exactly like the Google Maps key.
+- **(b)** Remove the Esri stack and default to OSM → but OSM's tile policy is itself unsuitable for high-traffic commercial use (§2.2), so this trades one problem for another.
+- **(c)** Remove and ship Google-3D-only → any user without a Google key gets no basemap, which breaks upstream's keyless boot.
+
+**Until this is decided, do not deploy publicly with the Esri stack reachable.** It is currently the default keyless path, so this is an acute pre-launch blocker rather than a paper one.
 
 ### 6.5 🟢 ODbL share-alike — **[FLAG — legal review]**
 My read (§3.2) is that we are clear because we render and discard rather than publish derived databases. Low urgency, but you asked to be told when something warrants a lawyer. Two future features would change the analysis: a data-export button, or persisting adsb.lol/OSM results into a queryable store.

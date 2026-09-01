@@ -50,8 +50,12 @@ const DEFAULT_OSM_CREDIT = '© OpenStreetMap contributors';
 // line. Terms note in DATA_SOURCES.md.
 const ESRI_WORLD_IMAGERY_URL =
   'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer';
+// Must match the attribution the service itself declares (its `copyrightText`
+// / `accessInformation`). Maxar rebranded to Vantor and Esri updated the
+// service accordingly, so the old "Maxar" string no longer named the actual
+// licensor. Re-check this string whenever the basemap provider changes.
 const ESRI_IMAGERY_CREDIT =
-  'Powered by Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community';
+  'Powered by Esri — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community';
 // The on-screen notice Esri requires when a third-party library draws its
 // service. Rendered via an explicit static credit (see _syncEsriAttribution) —
 // the provider's own `credit` option is ignored for tiled ArcGIS servers.
