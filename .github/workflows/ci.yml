@@ -155,7 +155,21 @@ jobs:
               status=1
             fi
           }
-          check "OpenSky"         'opensky-network\.org|/api/opensky'
+          # Two patterns, because a first pass of this cleanup missed
+          # scripts/dev-fresh.sh and the whole pinokio/ launcher: they carried
+          # OPENSKY_* credentials and an "opensky-network" keychain service
+          # name, never the .org domain the original guard looked for.
+          check "OpenSky endpoint" 'opensky-network|/api/opensky'
+          # Credential names are checked outside tests: tests legitimately name
+          # removed variables to assert they STAY removed. Note this is
+          # deliberately not `OPENSKY_[A-Z_]+`, which would flag
+          # src/data/aircraftClass.js's OPENSKY_CATEGORY — an ADS-B emitter
+          # category table that adsb.lol normalises into, not a credential.
+          if git grep -nIE 'OPENSKY_(CLIENT_ID|CLIENT_SECRET|AUTH_MODE|USERNAME|PASSWORD|CREDENTIALS_FILE)' \
+               -- ':!*.md' ':!.github/workflows/*' ':!docs/*' ':!*.test.mjs'; then
+            echo "::error::OpenSky credentials reintroduced. See COMMERCIAL_COMPLIANCE.md."
+            status=1
+          fi
           # The keyless Esri endpoint is Noncommercial-only. The licensed path
           # is ibasemaps-api.arcgis.com via ArcGIS Location Platform, so any
           # reappearance of the open host in code is a licensing regression.
