@@ -11,7 +11,7 @@
 - Weather **cut from MVP** (owner decision) — Open-Meteo removed, §6.1 closed.
 - Ships **out of Stage 1** (owner decision) — §6.3 closed.
 - All four Class-D sources are **removed from the codebase and verified absent** from the production build. CI now fails if any is reintroduced.
-- 🔴 **Esri World Imagery audited (§6.6): NOT licensed for commercial use as currently called.** Upstream v0.1.0 made it the default keyless basemap. The keyless endpoint is Noncommercial-only under the Esri MLA. A licensed path exists (ArcGIS Location Platform, free tier, commercial deployment licence) — **owner decision required before any public deploy.**
+- 🟢 **Esri World Imagery audited and remediated (§6.6).** The keyless Noncommercial endpoint has been removed and replaced with **ArcGIS Location Platform** (keyed, commercial deployment licence, 2M basemap tiles/month free). Esri moves **D → C**. Outstanding owner action: obtain and set a real `ARCGIS_API_KEY`.
 
 > ⚠️ **This is not legal advice.** It is an engineering audit trail recording what each provider's official terms said on the date checked, what our code does, and what we propose. Items marked **[FLAG — legal review]** warrant a lawyer's eyes before monetisation.
 
@@ -218,7 +218,7 @@ Attribution strings are quoted from `src/data/dataCredits.js` where GEV already 
 | **Cesium ion** | ToS ambiguous for a public ad-supported site (§2.2). **ion logo must be prominently displayed** | ✅ | `src/main.js:77-79`; `src/mapStackController.js`; `vite.config.js:7372` (`CESIUM_ION_TOKEN` **inlined into the bundle**) | **Do not depend on it for the P0 fallback** until clarified. Owner decision §6.2 |
 | **City CCTV — Austin / Caltrans / TfL** | Three different per-city regimes. TfL requires a specific compound string incl. **OS © Crown copyright**. Privacy/UX optics on a consumer product | ⬜ | `src/data/cctv.js` (198 KB) + 5 helper modules; proxy `vite.config.js:4492-4716`; `config/cctv_sources.*.json`; credits `dataCredits.js:110-133` | **Cut from MVP** as plan §4.3 already directs. No further verification needed unless we revive it |
 | **`tile.openstreetmap.org`** | OSMF policy: unsuitable for high-traffic commercial; withdrawal without notice | ✅ | `src/mapStackController.js` (OSM stack + Esri failure fallback) | Fine for local dev; **not** a production fallback. §6.2 |
-| **Esri World Imagery** (keyless `services.arcgisonline.com`) | **Class D as called** — Esri MLA / Terms of Use §2.2 restrict to Noncommercial Use (no income generated). Now the DEFAULT basemap | ✅ | `src/mapStackController.js:51-59`, `:327`; default at `src/main.js:177`, `:188` | **Switch to ArcGIS Location Platform** (API key, free tier, commercial licence) or remove. §6.6 |
+| **Esri World Imagery** via **ArcGIS Location Platform** (keyed `ibasemaps-api.arcgis.com`) | **Class C** — commercial deployment licence; free tier 2M basemap tiles/month; API key required. *(The keyless `services.arcgisonline.com` endpoint it replaced was Class D — Noncommercial only.)* | ✅ | `src/mapStackController.js` (stack def, `ARCGIS_API_KEY` gate, `fromBasemapType`); `src/main.js` | Attribution mandatory; **never cache tiles** (§3.1(d)(6)); key is client-exposed → restrict by referrer. §6.6 |
 | **Gemini free tier** (Stage 3) | Free-tier input used for training, human review possible (§2.3) | ✅ | Not yet in our codebase | Proceed, but the privacy policy must disclose it explicitly before Ask Atlas ships |
 
 ---

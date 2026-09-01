@@ -31,6 +31,9 @@ export const MAP_STACKS = [
     shortLabel: 'SAT',
     kind: 'esri-imagery',
     requiresIon: false,
+    // Requires an ArcGIS Location Platform API key. The previous keyless
+    // endpoint was Noncommercial-only — see the constant block below.
+    requiresArcGis: true,
   },
   {
     id: 'osm',
@@ -43,13 +46,27 @@ export const MAP_STACKS = [
 
 const DEFAULT_OSM_CREDIT = '© OpenStreetMap contributors';
 
-// Esri World Imagery — the keyless satellite basemap and the default keyless
-// landing (a spy-satellite simulator should open on satellite imagery, not a
-// street map). The classic ArcGIS Online tile service answers without a key;
-// attribution is required and the provider carries the service's own credit
-// line. Terms note in DATA_SOURCES.md.
-const ESRI_WORLD_IMAGERY_URL =
-  'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer';
+// Esri World Imagery — the satellite basemap, served through ArcGIS Location
+// Platform.
+//
+// ⚠️ DO NOT revert this to the keyless `services.arcgisonline.com` endpoint.
+// That service is governed by the Esri Master License Agreement, whose Terms
+// of Use §2.2 define "Noncommercial Use" as use provided at no charge AND
+// generating no income. An ad-supported product generates income, so the
+// keyless endpoint is not licensed for this product
+// (COMMERCIAL_COMPLIANCE.md §6.6).
+//
+// ArcGIS Location Platform is a different service with a different agreement:
+// it carries a commercial deployment licence, with a free tier of 2M basemap
+// tiles/month. It requires an API key, which Cesium sends to
+// `ibasemaps-api.arcgis.com` rather than the open endpoint.
+//
+// Obligations that follow (ArcGIS Location Platform Agreement E204 §3.1(d)):
+//   (4) attribution is mandatory — see ESRI_ATTRIBUTION_HTML below;
+//   (6) tiles must NOT be cached or stored beyond the caching headers, so this
+//       basemap is never proxied through our Worker (same rule as Google);
+//   (1) no rebranding, no redistribution to third parties.
+
 // Must match the attribution the service itself declares (its `copyrightText`
 // / `accessInformation`). Maxar rebranded to Vantor and Esri updated the
 // service accordingly, so the old "Maxar" string no longer named the actual
@@ -79,6 +96,7 @@ export class MapStackController {
   constructor(viewer, {
     googleTileset = null,
     cesiumToken = '',
+    arcGisApiKey = '',
     initialStack = 'photoreal',
     onChange = null,
     onError = null,
@@ -86,9 +104,13 @@ export class MapStackController {
     this.viewer = viewer;
     this.googleTileset = googleTileset;
     this.cesiumToken = String(cesiumToken || '').trim();
+    this.arcGisApiKey = String(arcGisApiKey || '').trim();
+    // Cesium reads this when building any ArcGIS basemap provider; setting it
+    // is what routes requests to the licensed ibasemaps-api endpoint.
+    if (this.arcGisApiKey) Cesium.ArcGisMapService.defaultAccessToken = this.arcGisApiKey;
     this._onChange = onChange;
     this._onError = onError;
-    this._activeId = googleTileset ? initialStack : 'esri-imagery';
+    this._activeId = googleTileset ? initialStack : this._keylessDefaultId();
     this._imageryLayer = null;
     this._activeImageryProvider = null;
     this._removeImageryErrorListener = null;
@@ -118,7 +140,7 @@ export class MapStackController {
     this._switchGen = 0;
 
     if (!this.getStack(this._activeId) || !this.isStackAvailable(this._activeId)) {
-      this._activeId = googleTileset ? 'photoreal' : 'esri-imagery';
+      this._activeId = googleTileset ? 'photoreal' : this._keylessDefaultId();
     }
   }
 
@@ -180,7 +202,22 @@ export class MapStackController {
     if (!stack) return false;
     if (stack.kind === 'photoreal') return !!this.googleTileset;
     if (stack.requiresIon) return !!this.cesiumToken;
+    if (stack.requiresArcGis) return !!this.arcGisApiKey;
     return true;
+  }
+
+  /**
+   * Basemap to land on when Google 3D tiles are unavailable.
+   *
+   * Esri satellite when an ArcGIS Location Platform key is configured;
+   * otherwise OSM. OSM is a DEVELOPMENT fallback only — the OSM Foundation's
+   * tile usage policy states access may be withdrawn without notice and is
+   * unsuitable for high-traffic commercial services, so a production
+   * deployment must configure a basemap key.
+   * @returns {string} stack id
+   */
+  _keylessDefaultId() {
+    return this.arcGisApiKey ? 'esri-imagery' : 'osm';
   }
 
   async setStack(id, { silent = false } = {}) {
@@ -328,14 +365,34 @@ export class MapStackController {
       provider = await Cesium.createWorldImageryAsync({ style: stack.style });
     } else if (stack.kind === 'esri-imagery') {
       try {
-        provider = await Cesium.ArcGisMapServerImageryProvider.fromUrl(ESRI_WORLD_IMAGERY_URL, {
-          credit: ESRI_IMAGERY_CREDIT,
-          enablePickFeatures: false,
-        });
+        if (!this.arcGisApiKey) {
+          // Guard, not an assertion: isStackAvailable() already hides this
+          // stack without a key. Reaching here would mean an unlicensed
+          // request, so fail into the OSM fallback instead.
+          throw new Error('ArcGIS Location Platform API key is not configured');
+        }
+        // fromBasemapType sends the access token to ibasemaps-api.arcgis.com
+        // (the licensed Location Platform endpoint), NOT the keyless
+        // services.arcgisonline.com service.
+        provider = await Cesium.ArcGisMapServerImageryProvider.fromBasemapType(
+          Cesium.ArcGisBaseMapType.SATELLITE,
+          {
+            token: this.arcGisApiKey,
+            credit: ESRI_IMAGERY_CREDIT,
+            enablePickFeatures: false,
+          },
+        );
+        // NOTE: there is no client-side way to validate the key. Measured
+        // 2026-09-01: ibasemaps-api serves full World_Imagery tiles (HTTP 200,
+        // image/jpeg) at every zoom level tested even for an obviously bogus
+        // token, and the service metadata endpoint answers 200 as well. So
+        // "tiles render" is NOT evidence of a valid subscription — licensing
+        // is contractual, not enforced at this endpoint. The operator must
+        // ensure ARCGIS_API_KEY is a real ArcGIS Location Platform key
+        // (COMMERCIAL_COMPLIANCE.md §6.6).
       } catch (error) {
-        // The keyless DEFAULT landing must never strand a first run on a blank
-        // globe because Esri is unreachable — fall back to OSM tiles for this
-        // session. (The fallback is cached under this stack id like any other
+        // Never strand a first run on a blank globe — fall back to OSM tiles
+        // for this session. (Cached under this stack id like any other
         // provider, so the session won't re-probe Esri; a restart does.)
         console.warn('[MapStack] Esri World Imagery unavailable, falling back to OSM:', error?.message || error);
         provider = new Cesium.OpenStreetMapImageryProvider({

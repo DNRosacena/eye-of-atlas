@@ -7100,6 +7100,9 @@ export default defineConfig(({ mode }) => {
     define: {
       'import.meta.env.GOOGLE_MAPS_API_KEY': JSON.stringify(env.GOOGLE_MAPS_API_KEY),
       'import.meta.env.CESIUM_ION_TOKEN': JSON.stringify(env.CESIUM_ION_TOKEN),
+      // Client-exposed by design, like the two above: ArcGIS Location Platform
+      // basemap keys are public tokens restricted by referrer in the portal.
+      'import.meta.env.ARCGIS_API_KEY': JSON.stringify(env.ARCGIS_API_KEY),
     },
     build: {
       // The Cesium engine bundle is inherently large; raise the warning ceiling

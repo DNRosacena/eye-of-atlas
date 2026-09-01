@@ -8,6 +8,7 @@ const DEFAULT_ENVIRONMENT_FILE = path.join(ROOT, 'pinokio', 'ENVIRONMENT');
 
 export const PINOKIO_CONFIG_FIELDS = Object.freeze([
   'GOOGLE_MAPS_API_KEY',
+  'ARCGIS_API_KEY',
   'CESIUM_ION_TOKEN',
   'OPENAI_API_KEY',
   'AISSTREAM_API_KEY',

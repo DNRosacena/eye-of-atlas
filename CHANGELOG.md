@@ -61,6 +61,25 @@ Four data sources whose terms forbid use in a monetised product:
   built from locally accumulated fixes, which was already the fallback on any
   backfill failure. Repointing at adsb.lol traces is a Stage 1 follow-up.
 
+#### Changed — basemap moved to a licensed service
+- **Esri satellite imagery now goes through ArcGIS Location Platform** instead
+  of the keyless `services.arcgisonline.com` endpoint. That endpoint is
+  governed by the Esri Master License Agreement, whose Terms of Use §2.2 limit
+  it to Noncommercial Use — defined as provided at no charge *and* generating
+  no income, which an ad-supported product does not satisfy. Location Platform
+  is a separate service carrying a commercial deployment licence, with a free
+  tier of 2M basemap tiles/month.
+- The Esri stack is gated on `ARCGIS_API_KEY`. Without it the stack is
+  unavailable and the keyless landing is OSM — a **development** fallback only,
+  since OSM's tile policy is unsuitable for high-traffic commercial use.
+- Basemap tiles are not proxied through the Worker, satisfying the agreement's
+  no-caching rule (§3.1(d)(6)) — the same constraint that keeps Google 3D Tiles
+  out of the Worker.
+- ⚠️ The app **cannot validate the key**: the endpoint serves full imagery even
+  for a bogus token, so rendering is not evidence of a valid subscription. A
+  preflight check was written and deliberately removed rather than imply
+  assurance it could not give.
+
 #### Notes
 - Parts B and C of the change plan (Worker routes, deployment) remain
   unimplemented; only the Worker skeleton exists.

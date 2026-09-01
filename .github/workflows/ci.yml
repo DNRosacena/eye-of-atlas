@@ -156,6 +156,11 @@ jobs:
             fi
           }
           check "OpenSky"         'opensky-network\.org|/api/opensky'
+          # The keyless Esri endpoint is Noncommercial-only. The licensed path
+          # is ibasemaps-api.arcgis.com via ArcGIS Location Platform, so any
+          # reappearance of the open host in code is a licensing regression.
+          # Matched with the protocol so the DO-NOT-REVERT comments don't trip it.
+          check "Esri keyless"    'https://services\.arcgisonline\.com'
           check "TeleGeography"   'telegeography|submarinecablemap'
           check "Google News RSS" 'news\.google\.com'
           check "Open-Meteo"      'api\.open-meteo\.com'
