@@ -127,8 +127,17 @@ jobs:
       # .env.example placeholders are empty, so they do not trip this.
       - name: Scan for key-shaped literals
         run: |
-          if git grep -nIE 'AIza[0-9A-Za-z_-]{30,}|sk-[A-Za-z0-9]{32,}|(FIRMS_MAP_KEY|GOOGLE_[A-Z_]*API_KEY|GEMINI_API_KEY)[[:space:]]*=[[:space:]]*[A-Za-z0-9_-]{16,}' \
-               -- ':!*.md' ':!.github/workflows/*'; then
+          # Two stages, because docs and tests legitimately contain values
+          # SHAPED like keys: .env.example ships `your_google_maps_api_key_here`
+          # and keySetupCore.test.mjs asserts against that exact placeholder.
+          # Stage 1 finds candidates; stage 2 drops recognisable placeholders.
+          candidates="$(git grep -nIE \
+            'AIza[0-9A-Za-z_-]{30,}|sk-[A-Za-z0-9]{32,}|(FIRMS_MAP_KEY|GOOGLE_[A-Z_]*API_KEY|GEMINI_API_KEY|ARCGIS_API_KEY)[[:space:]]*=[[:space:]]*[A-Za-z0-9_-]{16,}' \
+            -- ':!*.md' ':!.github/workflows/*' || true)"
+          suspicious="$(printf '%s\n' "$candidates" \
+            | grep -vaiE 'your_|_here|placeholder|example|fake|dummy|sample|not_a_real|xxxx' || true)"
+          if [ -n "$suspicious" ]; then
+            printf '%s\n' "$suspicious"
             echo "::error::Possible committed secret. Real keys belong in .env or the provider dashboard."
             exit 1
           fi
