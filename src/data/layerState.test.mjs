@@ -155,8 +155,11 @@ function encode(state) {
 
 test('production registry is exact, canonical, and rejects incomplete contracts', async () => {
   assert.equal(validateLayerStateRegistry(), true);
-  assert.equal(REGISTERED_LAYER_IDS.length, 16);
-  assert.equal(new Set(REGISTERED_LAYER_IDS).size, 16);
+  // 15, not 16: the TeleGeography submarine-cable layer was removed for
+  // licensing reasons (CC BY-NC-SA, NonCommercial). Its URL token 'u' is
+  // retired and must not be reused.
+  assert.equal(REGISTERED_LAYER_IDS.length, 15);
+  assert.equal(new Set(REGISTERED_LAYER_IDS).size, 15);
   assert.deepEqual(REGISTERED_LAYER_IDS, [...REGISTERED_LAYER_IDS].sort());
   assert.throws(
     () => validateLayerStateRegistry([...LAYER_STATE_REGISTRY, LAYER_STATE_REGISTRY[0]]),

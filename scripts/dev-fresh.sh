@@ -31,12 +31,11 @@ CCTV_MAX_SOURCES="${CCTV_MAX_SOURCES:-900}"
 KEY_SETUP_EXTERNAL_KEYS=()
 [[ -n "${GOOGLE_MAPS_API_KEY:-}" ]] && KEY_SETUP_EXTERNAL_KEYS+=(GOOGLE_MAPS_API_KEY)
 [[ -n "${CESIUM_ION_TOKEN:-}" ]] && KEY_SETUP_EXTERNAL_KEYS+=(CESIUM_ION_TOKEN)
+[[ -n "${ARCGIS_API_KEY:-}" ]] && KEY_SETUP_EXTERNAL_KEYS+=(ARCGIS_API_KEY)
 [[ -n "${OPENAI_API_KEY:-}" ]] && KEY_SETUP_EXTERNAL_KEYS+=(OPENAI_API_KEY)
 [[ -n "${AISSTREAM_API_KEY:-}" ]] && KEY_SETUP_EXTERNAL_KEYS+=(AISSTREAM_API_KEY)
 [[ -n "${FIRMS_MAP_KEY:-}" ]] && KEY_SETUP_EXTERNAL_KEYS+=(FIRMS_MAP_KEY)
 [[ -n "${TOMTOM_API_KEY:-}" ]] && KEY_SETUP_EXTERNAL_KEYS+=(TOMTOM_API_KEY)
-[[ -n "${OPENSKY_CLIENT_ID:-}" ]] && KEY_SETUP_EXTERNAL_KEYS+=(OPENSKY_CLIENT_ID)
-[[ -n "${OPENSKY_CLIENT_SECRET:-}" ]] && KEY_SETUP_EXTERNAL_KEYS+=(OPENSKY_CLIENT_SECRET)
 [[ -n "${LL2_API_TOKEN:-}" ]] && KEY_SETUP_EXTERNAL_KEYS+=(LL2_API_TOKEN)
 KEY_SETUP_EXTERNAL_KEYS_CSV="$(IFS=,; printf '%s' "${KEY_SETUP_EXTERNAL_KEYS[*]:-}")"
 
@@ -97,113 +96,6 @@ read_keychain_secret() {
   security find-generic-password -s "$service" -a "$account" -w 2>/dev/null || true
 }
 
-load_opensky_oauth_from_file() {
-  local file_path="$1"
-  if [[ -z "${file_path}" || ! -f "${file_path}" ]]; then
-    return
-  fi
-  if ! command -v node >/dev/null 2>&1; then
-    echo "warning: node not found; cannot parse OPENSKY_CREDENTIALS_FILE"
-    return
-  fi
-
-  local parsed
-  parsed="$(node -e "const fs=require('fs');const p=process.argv[1];try{const raw=JSON.parse(fs.readFileSync(p,'utf8'));const id=String(raw.clientId??raw.client_id??'').trim();const secret=String(raw.clientSecret??raw.client_secret??'').trim();process.stdout.write(id+'\\t'+secret);}catch{process.exit(1)}" -- "${file_path}" 2>/dev/null || true)"
-  if [[ "${parsed}" != *$'\t'* ]]; then
-    return
-  fi
-  local parsed_client_id="${parsed%%$'\t'*}"
-  local parsed_client_secret="${parsed#*$'\t'}"
-
-  if [[ -z "${OPENSKY_CLIENT_ID}" && -n "${parsed_client_id}" ]]; then
-    OPENSKY_CLIENT_ID="${parsed_client_id}"
-  fi
-  if [[ -z "${OPENSKY_CLIENT_SECRET}" && -n "${parsed_client_secret}" ]]; then
-    OPENSKY_CLIENT_SECRET="${parsed_client_secret}"
-  fi
-}
-
-resolve_opensky_credentials() {
-  OPENSKY_AUTH_MODE="${OPENSKY_AUTH_MODE:-$(read_dotenv_value "OPENSKY_AUTH_MODE")}"
-  OPENSKY_AUTH_MODE="$(printf '%s' "${OPENSKY_AUTH_MODE:-oauth}" | tr '[:upper:]' '[:lower:]')"
-  OPENSKY_CREDENTIALS_FILE="${OPENSKY_CREDENTIALS_FILE:-$(read_dotenv_value "OPENSKY_CREDENTIALS_FILE")}"
-  case "${OPENSKY_AUTH_MODE}" in
-    basic|oauth|auto|anon) ;;
-    *)
-      echo "warning: invalid OPENSKY_AUTH_MODE='${OPENSKY_AUTH_MODE}', defaulting to 'oauth'"
-      OPENSKY_AUTH_MODE="oauth"
-      ;;
-  esac
-
-  # Explicit env wins, then .env, then the credentials file / Keychain below.
-  OPENSKY_CLIENT_ID="${OPENSKY_CLIENT_ID:-$(read_dotenv_value "OPENSKY_CLIENT_ID")}"
-  OPENSKY_CLIENT_SECRET="${OPENSKY_CLIENT_SECRET:-$(read_dotenv_value "OPENSKY_CLIENT_SECRET")}"
-  OPENSKY_USERNAME="${OPENSKY_USERNAME:-$(read_dotenv_value "OPENSKY_USERNAME")}"
-  OPENSKY_PASSWORD="${OPENSKY_PASSWORD:-$(read_dotenv_value "OPENSKY_PASSWORD")}"
-
-  if [[ "${OPENSKY_AUTH_MODE}" == "basic" || "${OPENSKY_AUTH_MODE}" == "auto" ]] && [[ -z "${OPENSKY_USERNAME}" ]]; then
-    for svc in "opensky-network" "opensky"; do
-      for acct in "username" "user" "login" "email" "default"; do
-        OPENSKY_USERNAME="$(read_keychain_secret "${svc}" "${acct}")"
-        if [[ -n "${OPENSKY_USERNAME}" ]]; then
-          break 2
-        fi
-      done
-    done
-  fi
-  if [[ "${OPENSKY_AUTH_MODE}" == "basic" || "${OPENSKY_AUTH_MODE}" == "auto" ]] && [[ -z "${OPENSKY_PASSWORD}" ]]; then
-    for svc in "opensky-network" "opensky"; do
-      for acct in "password" "pass" "token" "secret" "default"; do
-        OPENSKY_PASSWORD="$(read_keychain_secret "${svc}" "${acct}")"
-        if [[ -n "${OPENSKY_PASSWORD}" ]]; then
-          break 2
-        fi
-      done
-    done
-  fi
-  if [[ "${OPENSKY_AUTH_MODE}" == "oauth" || "${OPENSKY_AUTH_MODE}" == "auto" ]] && [[ -n "${OPENSKY_CREDENTIALS_FILE}" ]]; then
-    load_opensky_oauth_from_file "${OPENSKY_CREDENTIALS_FILE}"
-  fi
-  if [[ "${OPENSKY_AUTH_MODE}" == "oauth" || "${OPENSKY_AUTH_MODE}" == "auto" ]] && [[ -z "${OPENSKY_CLIENT_ID}" ]]; then
-    for svc in "opensky-network" "opensky"; do
-      for acct in "client_id" "client-id" "client" "api-key"; do
-        OPENSKY_CLIENT_ID="$(read_keychain_secret "${svc}" "${acct}")"
-        if [[ -n "${OPENSKY_CLIENT_ID}" ]]; then
-          break 2
-        fi
-      done
-    done
-  fi
-  if [[ "${OPENSKY_AUTH_MODE}" == "oauth" || "${OPENSKY_AUTH_MODE}" == "auto" ]] && [[ -z "${OPENSKY_CLIENT_SECRET}" ]]; then
-    for svc in "opensky-network" "opensky"; do
-      for acct in "client_secret" "client-secret" "secret"; do
-        OPENSKY_CLIENT_SECRET="$(read_keychain_secret "${svc}" "${acct}")"
-        if [[ -n "${OPENSKY_CLIENT_SECRET}" ]]; then
-          break 2
-        fi
-      done
-    done
-  fi
-
-  case "${OPENSKY_AUTH_MODE}" in
-    basic)
-      OPENSKY_CLIENT_ID=""
-      OPENSKY_CLIENT_SECRET=""
-      ;;
-    oauth)
-      OPENSKY_USERNAME=""
-      OPENSKY_PASSWORD=""
-      ;;
-    anon)
-      OPENSKY_CLIENT_ID=""
-      OPENSKY_CLIENT_SECRET=""
-      OPENSKY_USERNAME=""
-      OPENSKY_PASSWORD=""
-      ;;
-  esac
-}
-
-resolve_opensky_credentials
 
 # Optional keys: explicit env wins, followed by .env and Keychain fallback.
 # Add to Keychain with e.g.:
@@ -286,42 +178,7 @@ echo "Google Maps key source: ${GOOGLE_MAPS_API_KEY_SOURCE}"
 echo "Tip: after server starts, hard refresh browser (Cmd+Shift+R)."
 echo "If panels are still missing, run this once in browser console:"
 echo "localStorage.removeItem('godsEyeView.v6.panelPos.cctv-panel'); location.reload();"
-echo "OpenSky auth mode: ${OPENSKY_AUTH_MODE}"
-if [[ -n "${OPENSKY_CREDENTIALS_FILE}" ]]; then
-  if [[ -f "${OPENSKY_CREDENTIALS_FILE}" ]]; then
-    echo "OpenSky credentials file: ${OPENSKY_CREDENTIALS_FILE}"
-  else
-    echo "OpenSky credentials file: ${OPENSKY_CREDENTIALS_FILE} (missing)"
-  fi
-fi
-case "${OPENSKY_AUTH_MODE}" in
-  basic)
-    if [[ -n "${OPENSKY_USERNAME}" && -n "${OPENSKY_PASSWORD}" ]]; then
-      echo "OpenSky basic auth: configured"
-    else
-      echo "OpenSky basic auth: missing credentials"
-    fi
-    ;;
-  oauth)
-    if [[ -n "${OPENSKY_CLIENT_ID}" && -n "${OPENSKY_CLIENT_SECRET}" ]]; then
-      echo "OpenSky OAuth: configured"
-    else
-      echo "OpenSky OAuth: missing client credentials"
-    fi
-    ;;
-  auto)
-    if [[ -n "${OPENSKY_CLIENT_ID}" && -n "${OPENSKY_CLIENT_SECRET}" ]]; then
-      echo "OpenSky auto auth: OAuth configured"
-    elif [[ -n "${OPENSKY_USERNAME}" && -n "${OPENSKY_PASSWORD}" ]]; then
-      echo "OpenSky auto auth: basic configured"
-    else
-      echo "OpenSky auto auth: no credentials found"
-    fi
-    ;;
-  anon)
-    echo "OpenSky auth: disabled (anonymous mode)"
-    ;;
-esac
+echo "Flights: adsb.lol (keyless, ODbL 1.0) - regional coverage"
 [[ -n "${OPENAI_API_KEY}" ]] && echo "OpenAI key (voice + HUD summary): configured" || echo "OpenAI key (voice + HUD summary): not set — GEV MIC disabled"
 [[ -n "${AISSTREAM_API_KEY}" ]] && echo "AISStream key (live vessels): configured" || echo "AISStream key (live vessels): not set — ships layer empty"
 if [[ -n "${GOOGLE_MAPS_API_KEY}" ]]; then
@@ -365,15 +222,10 @@ put_env CCTV_TFL_ENABLED "${CCTV_TFL_ENABLED}"
 put_env CCTV_TFL_MAX_SOURCES "${CCTV_TFL_MAX_SOURCES}"
 put_env_if_set TFL_APP_KEY "${TFL_APP_KEY:-}"
 put_env CCTV_MAX_SOURCES "${CCTV_MAX_SOURCES}"
-put_env OPENSKY_AUTH_MODE "${OPENSKY_AUTH_MODE}"
-put_env_if_set OPENSKY_CREDENTIALS_FILE "${OPENSKY_CREDENTIALS_FILE}"
-put_env_if_set OPENSKY_CLIENT_ID "${OPENSKY_CLIENT_ID}"
-put_env_if_set OPENSKY_CLIENT_SECRET "${OPENSKY_CLIENT_SECRET}"
-put_env_if_set OPENSKY_USERNAME "${OPENSKY_USERNAME}"
-put_env_if_set OPENSKY_PASSWORD "${OPENSKY_PASSWORD}"
 put_env_if_set OPENAI_API_KEY "${OPENAI_API_KEY}"
 put_env_if_set AISSTREAM_API_KEY "${AISSTREAM_API_KEY}"
 put_env_if_set CESIUM_ION_TOKEN "${CESIUM_ION_TOKEN}"
+put_env_if_set ARCGIS_API_KEY "${ARCGIS_API_KEY}"
 put_env_if_set TOMTOM_API_KEY "${TOMTOM_API_KEY}"
 put_env_if_set FIRMS_MAP_KEY "${FIRMS_MAP_KEY}"
 put_env_if_set LL2_API_TOKEN "${LL2_API_TOKEN}"

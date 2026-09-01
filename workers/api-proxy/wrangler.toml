@@ -1,0 +1,46 @@
+# Eye of Atlas — API proxy Worker
+#
+# Deploy:   npx wrangler deploy
+# Local:    npx wrangler dev
+# Secrets:  npx wrangler secret put FIRMS_MAP_KEY     (NEVER put real keys in this file)
+
+name = "eye-of-atlas-api-proxy"
+main = "src/index.js"
+compatibility_date = "2026-08-28"  # bump only alongside a wrangler upgrade; the local runtime rejects future dates
+
+# ── Non-secret configuration ────────────────────────────────────────────────
+# Real keys are set with `wrangler secret put` and never appear here.
+[vars]
+ENVIRONMENT = "development"
+ALLOWED_ORIGINS = "http://localhost:4173,http://localhost:5173,http://localhost:8788"
+
+# Per-source daily budget caps (UTC day). Over cap: serve cache, else
+# 503 {status:"layer-paused"}. Never unbounded spend. (Master plan §6.6)
+BUDGET_PING_PER_DAY = "1000"
+BUDGET_GEOCODE_PER_DAY = "300"
+BUDGET_FIRMS_PER_DAY = "500"
+BUDGET_CELESTRAK_PER_DAY = "12"
+BUDGET_FLIGHTS_PER_DAY = "5000"
+
+# Per-IP rate limits (requests/minute), keyed on CF-Connecting-IP.
+RATELIMIT_PING_PER_MIN = "10"
+RATELIMIT_GEOCODE_PER_MIN = "20"
+RATELIMIT_FIRMS_PER_MIN = "10"
+RATELIMIT_CELESTRAK_PER_MIN = "10"
+RATELIMIT_FLIGHTS_PER_MIN = "30"
+
+# ── KV namespace for rate-limit + budget counters ───────────────────────────
+# REQUIRED BEFORE PRODUCTION. Without it the Worker falls back to in-memory
+# counters that are per-isolate and evaporate on eviction, making the caps
+# ineffective — src/lib/store.js refuses to serve in production without it.
+#
+# Provision, then uncomment and paste the id:
+#   npx wrangler kv namespace create COUNTERS
+#
+# [[kv_namespaces]]
+# binding = "COUNTERS"
+# id = "<paste-id-here>"
+
+# ── Production environment ──────────────────────────────────────────────────
+[env.production]
+vars = { ENVIRONMENT = "production", ALLOWED_ORIGINS = "https://eyeofatlas.com,https://www.eyeofatlas.com" }

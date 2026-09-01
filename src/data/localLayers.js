@@ -1,6 +1,5 @@
 import { createLocalGeoJsonLayer } from './localGeojson.js';
 import { createFirmsHeatmapLayer } from './firmsHeatmap.js';
-import submarineCablesLayer from './telegeographySubmarineCables.js';
 
 // Use Vite's ?url import to properly resolve these assets in dev and build
 import datacentersUrl from './local_data/datacenters/datacenters.geojsonl?url';
@@ -28,7 +27,9 @@ const dams = createLocalGeoJsonLayer({
   name: 'Dams',
   color: '#0088ff', // Blue
   icon: '▰',
-  source: 'USACE',
+  // Not USACE: this is an OpenInfraMap/OSM extract under ODbL 1.0 (see the
+  // dataset README). The old label misattributed ODbL data to a US agency.
+  source: 'OSM / OpenInfraMap',
   labels: true,
   labelMax: 900,
   labelGridPx: 132,
@@ -47,6 +48,5 @@ const fires = createFirmsHeatmapLayer({
 export default [
   datacenters,
   dams,
-  submarineCablesLayer,
   fires,
 ];

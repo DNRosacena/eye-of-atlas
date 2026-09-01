@@ -73,7 +73,6 @@ export function layerFeedState(stats = {}) {
   const state = stats || {};
   const status = typeof state.status === 'string' ? state.status.toLowerCase() : '';
   const source = `${state.source || ''} ${state.coverage || ''}`;
-  const hasExplicitFallback = typeof state.fallback === 'boolean';
   const hasPriorData = Number(state.count) > 0 || Boolean(state.lastUpdate);
   const presentedError = state.error || state.lastError || state.managerRefreshError;
   if (['unavailable', 'offline', 'down', 'error'].includes(status)) return 'unavailable';
@@ -97,7 +96,10 @@ export function layerFeedState(stats = {}) {
     || status === 'fallback'
     || state.mode === 'sim'
     || /\bfallback\b/i.test(source)
-    || (!hasExplicitFallback && /\badsb\.lol\b/i.test(source))
+    // The adsb.lol special case was removed with the OpenSky swap: adsb.lol is
+    // now the PRIMARY flight source, not a degraded stand-in, so classifying it
+    // as 'fallback' would permanently show FALLBACK on a healthy feed. Its
+    // regional-coverage caveat is surfaced through stats.coverage instead.
   ) {
     return 'fallback';
   }
@@ -2247,6 +2249,13 @@ export class DataLayerManager {
     }
     if (typeof stats.loadingLabel === 'string' && stats.loadingLabel.trim()) {
       return `${source} · ${stats.loadingLabel.trim()}`;
+    }
+    // A source-level caveat (e.g. adsb.lol's regional coverage) is a permanent
+    // property of the feed, not a fault, so it rides the nominal line too.
+    // Licence/honesty requirement: users must not read partial coverage as
+    // complete coverage.
+    if (typeof stats.coverage === 'string' && stats.coverage.trim()) {
+      return `${source} · ${stats.coverage.trim()} · ${ago}`;
     }
     return `${source} · ${ago}`;
   }

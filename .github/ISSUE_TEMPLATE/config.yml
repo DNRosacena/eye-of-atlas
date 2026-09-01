@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/DNRosacena/eye-of-atlas/security/advisories/new
+    about: Please report security issues privately, not as a public issue.
+  - name: God's Eye View (upstream)
+    url: https://github.com/bilawalsidhu/gods-eye-view
+    about: Eye of Atlas is built on God's Eye View. Issues in the underlying globe engine may belong upstream.

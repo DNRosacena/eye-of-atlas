@@ -13,12 +13,11 @@ const require = createRequire(import.meta.url);
 const PROVIDER_FIELDS = [
   'GOOGLE_MAPS_API_KEY',
   'CESIUM_ION_TOKEN',
+  'ARCGIS_API_KEY',
   'OPENAI_API_KEY',
   'AISSTREAM_API_KEY',
   'FIRMS_MAP_KEY',
   'TOMTOM_API_KEY',
-  'OPENSKY_CLIENT_ID',
-  'OPENSKY_CLIENT_SECRET',
   'LL2_API_TOKEN',
 ];
 const RATE_LIMIT_FIELDS = [

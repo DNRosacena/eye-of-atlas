@@ -11,24 +11,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const CREDENTIALS = Object.freeze([
   { name: 'GOOGLE_MAPS_API_KEY', label: 'Google Maps', keychain: [['google-maps-api', 'api-key'], ['google-maps-api', 'default'], ['google-maps-api', 'key']] },
   { name: 'CESIUM_ION_TOKEN', label: 'Cesium ion', keychain: [['cesium-ion', 'token']] },
+  { name: 'ARCGIS_API_KEY', label: 'ArcGIS basemap', keychain: [['arcgis-api', 'api-key']] },
   { name: 'OPENAI_API_KEY', label: 'OpenAI voice', keychain: [['openai-api', 'api-key']] },
   { name: 'AISSTREAM_API_KEY', label: 'AISStream vessels', keychain: [['aisstream-api', 'api-key']] },
   { name: 'FIRMS_MAP_KEY', label: 'NASA FIRMS fires', keychain: [['firms-map', 'map-key']] },
   { name: 'TOMTOM_API_KEY', label: 'TomTom traffic', keychain: [['tomtom-api', 'api-key']] },
-  {
-    name: 'OPENSKY_CLIENT_ID',
-    label: 'OpenSky client ID',
-    keychain: ['opensky-network', 'opensky'].flatMap((service) => (
-      ['client_id', 'client-id', 'client', 'api-key'].map((account) => [service, account])
-    )),
-  },
-  {
-    name: 'OPENSKY_CLIENT_SECRET',
-    label: 'OpenSky client secret',
-    keychain: ['opensky-network', 'opensky'].flatMap((service) => (
-      ['client_secret', 'client-secret', 'secret'].map((account) => [service, account])
-    )),
-  },
   { name: 'LL2_API_TOKEN', label: 'Launch Library 2', keychain: [] },
 ]);
 
@@ -137,10 +124,10 @@ export function buildCapabilitySummary(credentials) {
       ? 'Google Photorealistic 3D Tiles (direct)'
       : route === 'google-ion'
         ? 'Google Photorealistic 3D Tiles through Cesium ion; Bing and world-terrain stacks available'
-        : 'Esri World Imagery (keyless satellite basemap) with keyless terrain',
-    flights: configured('OPENSKY_CLIENT_ID') && configured('OPENSKY_CLIENT_SECRET')
-      ? 'OpenSky OAuth credentials present (runtime mode and validity not verified)'
-      : 'OpenSky OAuth credentials not configured',
+        : (configured('ARCGIS_API_KEY')
+        ? 'Esri World Imagery via ArcGIS Location Platform (licensed) with keyless terrain'
+        : 'OSM tiles with keyless terrain — add ARCGIS_API_KEY for satellite imagery (OSM is a dev fallback, not licensed for high-traffic commercial use)'),
+    flights: 'adsb.lol (keyless, ODbL 1.0) — regional coverage, not global',
     voice: configured('OPENAI_API_KEY') ? 'available' : 'off until an OpenAI key is added',
     vessels: configured('AISSTREAM_API_KEY') ? 'live AISStream feed' : 'off until an AISStream key is added',
     fires: configured('FIRMS_MAP_KEY') ? 'live NASA FIRMS feed' : 'off until a FIRMS key is added',

@@ -1,0 +1,44 @@
+name: Data source problem
+description: Wrong, stale, missing, or improperly attributed data — including licensing concerns
+labels: [data-source, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for anything about the data itself: it looks wrong, it is not
+        updating, attribution is missing, or you believe a source is being used
+        outside its licence.
+
+        **If this is a licensing or attribution concern, please say so plainly —
+        those are treated as high priority.** Our full audit is in
+        [COMMERCIAL_COMPLIANCE.md](../../COMMERCIAL_COMPLIANCE.md).
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Which layer?
+      options: [Earthquakes (USGS), Satellites (CelesTrak), Wildfires (NASA FIRMS), Flights (adsb.lol), Other / not sure]
+    validations: { required: true }
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of problem
+      options:
+        - Data looks wrong or implausible
+        - Data is stale or not updating
+        - Data is missing where it should exist
+        - Attribution is missing or incorrect
+        - Licensing concern
+    validations: { required: true }
+  - type: textarea
+    id: detail
+    attributes:
+      label: Details
+      description: What you saw, where, and when (with a timezone if timing matters).
+    validations: { required: true }
+  - type: markdown
+    attributes:
+      value: |
+        **Note on flight coverage:** flights come from adsb.lol, a community
+        ADS-B network. Coverage is genuinely regional — strong over Europe and
+        North America, sparse elsewhere. Missing aircraft outside those regions
+        is expected, not a bug. See COMMERCIAL_COMPLIANCE.md §3.2.

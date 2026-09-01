@@ -6,8 +6,7 @@ import * as Cesium from 'cesium';
  * Legal requirement (see DATA_SOURCES.md, findings H10/H11 in
  * docs/pre-ship-audit-2026-07-01.md): every third-party data layer this app can
  * display carries its own license and required attribution — ODbL (OSM
- * datacenters/dams, adsb.lol, Overpass roads), CC BY-NC-SA (TeleGeography
- * cables), NASA FIRMS, CelesTrak, USGS, City of Austin, GBFS operators, OpenSky.
+ * datacenters/dams, adsb.lol, Overpass roads), NASA FIRMS, CelesTrak, USGS, City of Austin, GBFS operators.
  * The MIT code license does NOT cover this data.
  *
  * These credits are registered ONCE at init as STATIC credits with
@@ -28,19 +27,11 @@ import * as Cesium from 'cesium';
 export const DATA_CREDITS = [
   // ── Live sources ────────────────────────────────────────────────
   {
-    key: 'opensky',
-    html:
-      'Flights: OpenSky Network — Schäfer et al., ' +
-      '“Bringing Up OpenSky”, IPSN 2014 · ' +
-      '<a href="https://opensky-network.org" target="_blank" rel="noopener">opensky-network.org</a> ' +
-      '(non-commercial)',
-  },
-  {
     key: 'adsblol',
     html:
-      'Military flights, aircraft traces &amp; bounded regional flight fallback: ' +
-      '<a href="https://adsb.lol" target="_blank" rel="noopener">adsb.lol</a> ' +
-      '(ODbL 1.0)',
+      'Flights (incl. military) &amp; aircraft traces: ' +
+      '<a href="https://adsb.lol" target="_blank" rel="noopener">adsb.lol contributors</a> ' +
+      '(ODbL 1.0) — regional coverage, not a complete global picture',
   },
   {
     key: 'aisstream',
@@ -88,23 +79,9 @@ export const DATA_CREDITS = [
       'via Nominatim (ODbL 1.0)',
   },
   {
-    key: 'open-meteo',
-    html:
-      'Cockpit current conditions: ' +
-      '<a href="https://open-meteo.com/en/licence" target="_blank" rel="noopener">Weather data by Open-Meteo.com</a> ' +
-      '(CC BY 4.0)',
-  },
-  {
-    key: 'google-news-rss',
-    html:
-      'Cockpit regional headlines: ' +
-      '<a href="https://policies.google.com/terms" target="_blank" rel="noopener">Google News RSS</a> ' +
-      '(location-matched article links; publisher terms apply)',
-  },
-  {
     key: 'gdelt',
     html:
-      'Cockpit regional headlines: ' +
+      'Regional headlines: ' +
       '<a href="https://www.gdeltproject.org/about.html" target="_blank" rel="noopener">GDELT Project</a> ' +
       '(location-matched article links; publisher terms apply)',
   },
@@ -167,13 +144,6 @@ export const DATA_CREDITS = [
       'from NASA’s Fire Information for Resource Management System ' +
       '(<a href="https://earthdata.nasa.gov/firms" target="_blank" rel="noopener">earthdata.nasa.gov/firms</a>), ' +
       'part of NASA’s Earth Observing System Data and Information System (EOSDIS)',
-  },
-  {
-    key: 'telegeography',
-    html:
-      'Submarine cables: © TeleGeography — ' +
-      '<a href="https://www.submarinecablemap.com" target="_blank" rel="noopener">submarinecablemap.com</a> ' +
-      '(CC BY-NC-SA 3.0 — NonCommercial)',
   },
 ];
 

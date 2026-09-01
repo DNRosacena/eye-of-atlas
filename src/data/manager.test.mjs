@@ -1820,13 +1820,24 @@ test('layer feed states distinguish unavailable, fallback, stale, and degraded c
     lastUpdate: 1,
   }), 'unavailable', 'an explicit total outage stays unavailable while last-good data is preserved');
   assert.equal(layerFeedState({ mode: 'sim', count: 100, lastUpdate: 1 }), 'fallback');
-  assert.equal(layerFeedState({ source: 'adsb.lol', count: 10, lastUpdate: 1 }), 'fallback');
+  // adsb.lol is now the PRIMARY flight source, not a degraded stand-in for
+  // OpenSky, so it must read as nominal on its own. Its regional-coverage
+  // caveat travels through `coverage`, not through the fault vocabulary —
+  // otherwise a healthy feed would permanently display FALLBACK.
+  assert.equal(layerFeedState({ source: 'adsb.lol', count: 10, lastUpdate: 1 }), 'nominal');
   assert.equal(layerFeedState({
     source: 'adsb.lol',
-    fallback: false,
+    coverage: 'regional coverage - not all aircraft',
     count: 10,
     lastUpdate: 1,
-  }), 'nominal', 'an explicitly primary adsb.lol feed is not a fallback');
+  }), 'nominal', 'a coverage caveat is not a feed fault');
+  // An explicit fallback flag still wins, whatever the source.
+  assert.equal(layerFeedState({
+    source: 'adsb.lol',
+    fallback: true,
+    count: 10,
+    lastUpdate: 1,
+  }), 'fallback', 'an explicit fallback flag is still honoured');
   assert.equal(layerFeedState({ stale: true, count: 0, lastUpdate: 1 }), 'stale');
   assert.equal(layerFeedState({ error: 'partial group failure', count: 50, lastUpdate: 1 }), 'degraded');
   assert.equal(layerFeedState({ loading: true }), 'loading');

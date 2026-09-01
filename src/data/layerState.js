@@ -289,7 +289,9 @@ export const LAYER_STATE_REGISTRY = Object.freeze([
   Object.freeze({ id: 'radio', token: 'r', disposition: 'enabled+options', optionOwner: 'radio' }),
   Object.freeze({ id: 'rocket-launches', token: 'x', disposition: 'enabled-only' }),
   Object.freeze({ id: 'satellites', token: 's', disposition: 'enabled+options', optionOwner: 'satellites' }),
-  Object.freeze({ id: 'telegeography-submarine-cables', token: 'u', disposition: 'enabled-only' }),
+  // Token 'u' retired: the submarine-cable layer was removed for
+  // licensing reasons (CC BY-NC-SA, NonCommercial). Do NOT reuse 'u' for a new
+  // layer — old share links may still carry it, and unknown tokens are ignored.
   Object.freeze({ id: 'traffic', token: 't', disposition: 'enabled-only' }),
 ]);
 

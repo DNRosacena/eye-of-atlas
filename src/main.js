@@ -80,6 +80,13 @@ async function init() {
     const cesiumToken = import.meta.env.CESIUM_ION_TOKEN;
     const googleApiKey = import.meta.env.GOOGLE_MAPS_API_KEY;
     if (googleApiKey) window.__GOOGLE_MAPS_API_KEY__ = googleApiKey;
+    // ArcGIS Location Platform key for the Esri satellite basemap. Client-
+    // exposed by design (like the Google and ion keys) — restrict it by
+    // referrer in the ArcGIS portal rather than trying to hide it. Without it
+    // the Esri stack is unavailable and the keyless landing is OSM, because
+    // the old keyless Esri endpoint is not licensed for commercial use
+    // (COMMERCIAL_COMPLIANCE.md §6.6).
+    const arcGisApiKey = import.meta.env.ARCGIS_API_KEY;
 
     // Create the Cesium viewer with minimal chrome
     const viewer = new Cesium.Viewer('cesiumContainer', {
@@ -171,10 +178,12 @@ async function init() {
 
     loaderStatus.textContent = 'Initializing systems...';
 
+    const keylessDefaultStack = arcGisApiKey ? 'esri-imagery' : 'osm';
     const mapStackController = new MapStackController(viewer, {
       googleTileset: tileset,
       cesiumToken,
-      initialStack: tileset ? 'photoreal' : 'esri-imagery',
+      arcGisApiKey,
+      initialStack: tileset ? 'photoreal' : keylessDefaultStack,
       // Task 5 (height-datum fix): rebroadcast stack changes as a window
       // CustomEvent so data layers (CCTV per-regime ground resolution) can
       // react without coupling MapStackController to layer modules. Fires on
@@ -185,7 +194,7 @@ async function init() {
       },
       onError: (message) => console.warn('[MapStack]', message),
     });
-    await mapStackController.setStack(tileset ? 'photoreal' : 'esri-imagery', { silent: true });
+    await mapStackController.setStack(tileset ? 'photoreal' : keylessDefaultStack, { silent: true });
 
     // Initialize the style manager (post-processing, HUD, locations, share links)
     const styleManager = new StyleManager(viewer, { mapStackController });

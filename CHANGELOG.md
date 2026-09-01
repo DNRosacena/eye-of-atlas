@@ -1,229 +1,125 @@
 # Changelog
 
-This changelog records public product changes. For the authoritative description
-of current runtime behavior, see [`docs/CURRENT-STATE.md`](docs/CURRENT-STATE.md).
+All notable changes to Eye of Atlas are recorded here.
+
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
+versioning will follow [Semantic Versioning](https://semver.org/) from the
+first public release.
+
+---
 
 ## [Unreleased]
 
-### Fixed
+### Stage 0 — Research, Audit & Preparation
 
-- All three VIIRS sources now reach the Active Fires layer. Merging a source's
-  detections used argument spread, which exceeds the engine's argument limit on
-  the two largest sources and dropped them entirely — leaving roughly a third of
-  global detections while reporting each dropped source twice, once as
-  successful with its real count and once as failed.
-- `./scripts/dev-fresh.sh` no longer crashes on stock macOS bash 3.2 when no
-  provider keys are exported: expanding the empty external-keys provenance
-  array under `set -u` was fatal there. Launches with exported keys are
-  unchanged.
+#### Added
+- `docs/GEV-INSPECTION.md` — inspection of God's Eye View at commit `6d83bb6`,
+  documenting its real state: 144 source modules / 92.7k LOC, 16 live layers,
+  and a "server proxy" that is 7,383 lines of Vite dev-server middleware rather
+  than a deployable service.
+- `COMMERCIAL_COMPLIANCE.md` — per-source audit trail: licence, commercial
+  class, required attribution string, provider rate/cache rules, and the exact
+  `file:line` load paths. Terms re-verified against providers' own pages on
+  2026-09-01.
+- `docs/STAGE0-CHANGE-PLAN.md` — approved file-level plan for the Class-D
+  cleanup, the Worker key broker, and Cloudflare Pages deployment.
+- `workers/api-proxy/` — Cloudflare Worker skeleton. Origin allowlist, per-IP
+  rate limiting keyed on `CF-Connecting-IP`, per-source daily budget caps with
+  a `layer-paused` degradation contract, and provider cache-window enforcement.
+  One dummy brokered endpoint (`/api/ping`) proves the pipeline end-to-end;
+  22 unit tests, verified live under `wrangler dev`.
+- Repo scaffolding: `.gitignore`, `.env.example`, `.nvmrc` (Node 24),
+  `LICENSE` (MIT), `NOTICE`, `README.md`, issue and PR templates, Dependabot,
+  and CI (lint, test, build, `npm audit`, secret scan). No deploy job yet.
 
-### Security
+#### Removed — commercial data cleanup (change plan Part A)
+Four data sources whose terms forbid use in a monetised product:
+- **TeleGeography submarine cables** (CC BY-NC-SA 3.0, NonCommercial) — the
+  bundled dataset, the layer module, its registration, credits, voice-tool
+  enums, allocation-benchmark profile and three QA scripts. URL share token
+  `u` is retired and must not be reused.
+- **OpenSky** (non-commercial; explicitly prohibits *"advertisements on web
+  pages/applications using the API"*) — `/api/opensky` and
+  `/api/opensky-track` replaced by `/api/flights`, backed by **adsb.lol**
+  (ODbL 1.0). All OAuth machinery, credentials, keychain lookups, the setup
+  doctor checks, the Provider Settings card and the import script are gone.
+- **Google News RSS** (personal, non-commercial use only) — **GDELT DOC 2.0**
+  is now the sole headline source, with its required citation link.
+- **Open-Meteo free API** (forbids ad-supported use) — the weather-effects
+  proxy and briefing weather. The cockpit cloud renderer is left intact and
+  simply has no observation to drive it.
 
-- GBFS proxy body-size cap now measures the response in bytes
-  (`Buffer.byteLength`) instead of JavaScript string length, so the
-  `GBFS_MAX_BODY_BYTES` limit holds for multi-byte payloads and cannot be
-  overrun by non-ASCII upstream responses.
+#### Changed
+- **Flights are regional now, and the UI says so.** The layer row reads
+  `adsb.lol · regional coverage - not all aircraft`. adsb.lol was previously
+  classified as a *fallback* source, which would have permanently displayed
+  `FALLBACK` on a healthy feed; it is now correctly treated as primary, and the
+  coverage caveat rides the nominal status line instead of the fault vocabulary.
+- Dams layer source label corrected from `USACE` to `OSM / OpenInfraMap` — it
+  is an ODbL OpenStreetMap extract and the old label misattributed it.
+- Historical trail backfill removed with OpenSky's `/tracks/all`. Trails are
+  built from locally accumulated fixes, which was already the fallback on any
+  backfill failure. Repointing at adsb.lol traces is a Stage 1 follow-up.
 
-## [0.1.0] — 2026-08-31 — One-click install, keyless boot, Provider Settings
+#### Resolved
+- **The P0 low-cost imagery fallback now has a licensed source.** ArcGIS
+  Location Platform supplies the satellite basemap, the keyless-boot path and
+  the degradation target for Google 3D Tiles budget exhaustion in one move —
+  no infrastructure, no monthly cost at MVP volume. Cesium ion (ambiguous
+  terms) and `tile.openstreetmap.org` (unsuitable for commercial traffic) are
+  both out of that role; OSM remains only as a development fallback.
 
-### Added
-- **One-click install** via Pinokio. Keyless boot lands on a live Esri World
-  Imagery satellite globe with keyless terrain; OSM takes over automatically if
-  Esri is unreachable, and the globe continues without terrain if its source is
-  unavailable.
-- **Provider Settings** (the POWER UP panel): add, replace, or remove API keys
-  inside the app. Credential files are made owner-only before any secret is
-  written — verified on macOS and Windows — and keys configured outside the
-  panel are shown read-only, never rewritten.
-- **Keyless capability responses**: the optional HUD summary and place-search
-  endpoints return a deliberate "not configured" success instead of errors, and
-  never consume rate-limit quota.
-- `.gitattributes` normalizes line endings, so Windows clones pass the full
-  test suite out of the box (#81 — thanks @ethanstoner).
+#### Changed — basemap moved to a licensed service
+- **Esri satellite imagery now goes through ArcGIS Location Platform** instead
+  of the keyless `services.arcgisonline.com` endpoint. That endpoint is
+  governed by the Esri Master License Agreement, whose Terms of Use §2.2 limit
+  it to Noncommercial Use — defined as provided at no charge *and* generating
+  no income, which an ad-supported product does not satisfy. Location Platform
+  is a separate service carrying a commercial deployment licence, with a free
+  tier of 2M basemap tiles/month.
+- The Esri stack is gated on `ARCGIS_API_KEY`. Without it the stack is
+  unavailable and the keyless landing is OSM — a **development** fallback only,
+  since OSM's tile policy is unsuitable for high-traffic commercial use.
+- Basemap tiles are not proxied through the Worker, satisfying the agreement's
+  no-caching rule (§3.1(d)(6)) — the same constraint that keeps Google 3D Tiles
+  out of the Worker.
+- ⚠️ The app **cannot validate the key**: the endpoint serves full imagery even
+  for a bogus token, so rendering is not evidence of a valid subscription. A
+  preflight check was written and deliberately removed rather than imply
+  assurance it could not give.
 
-### Changed
-- README rewritten keyless-first around the provider ladder: zero keys → free
-  Cesium ion (eligible personal, non-commercial use) → billing-enabled Google
-  Maps.
-- Browser-built data modules no longer import `node:fs`; a repo-wide boundary
-  scan test keeps it that way (#83 — thanks @ethanstoner).
-- Aircraft-identity voice answers explicitly cover operator, type, and route,
-  and say so plainly when enrichment is unavailable instead of guessing.
+#### Notes
+- Parts B and C of the change plan (Worker routes, deployment) remain
+  unimplemented; only the Worker skeleton exists.
+- Forked from God's Eye View at `6b7bca2` (v0.1.0), which added keyless boot,
+  in-app Provider Settings and an Esri World Imagery basemap. **Esri's terms
+  have not been audited** — see `COMMERCIAL_COMPLIANCE.md` §6.6.
+- The all-live allocation budget (182,000 B/frame) was calibrated with the
+  submarine-cable cohort included. It is now conservative rather than tight and
+  should be re-measured.
+- Corrections to master plan §4 found during the audit, each verified against
+  the provider's own terms:
+  - **Open-Meteo's free API is non-commercial** ("apps that display
+    advertisements … are considered commercial use"). The plan classed it as
+    Class B / commercial-OK. **Weather is cut from MVP** as a result.
+  - **Cesium ion reclassified C → E** — its ToS is ambiguous for a public
+    ad-supported product, and `tile.openstreetmap.org` is explicitly unsuitable
+    for high-traffic commercial use. The P0 imagery fallback has no confirmed
+    licensed source yet.
+  - **Google Photorealistic 3D Tiles bills per root tileset query (≈ per
+    session), not per tile** — renderer-originating tile requests are not
+    billable. This makes the cost risk in §6.6 substantially smaller than
+    modelled, and is why 3D Tiles are capped at Google's quota layer rather
+    than proxied. Needs confirmation against real billing.
+  - **Gemini's free tier trains on submitted content** with possible human
+    review — a privacy-policy disclosure requirement for Stage 3.
+- **Ships are out of Stage 1.** AISStream has no formal ToS and prohibits
+  direct browser connections, which would force Durable Objects. The Worker is
+  therefore designed purely request-scoped.
 
-### Security
-- Provider Settings answers only local, unproxied requests and disables itself
-  entirely whenever the server is shared. Public datacenter and dam datasets
-  omit contact-oriented fields (see the dataset READMEs).
+---
 
-## Pre-release development history
+## Attribution
 
-The dated entries and internal milestone numbers below predate the first
-tagged GitHub Release. They are retained as project history and do not
-represent previously published GitHub Releases.
-
-## [Unreleased] — 2026-08-24
-
-### Added
-
-- Added honest aircraft identity narration: callsign, operator, registration,
-  type, and route come only from selected-contact context, and missing operator,
-  route, or type enrichment is named explicitly.
-- Added local, publication-compatible copies of the two README PNGs, with source
-  records and third-party-license boundaries in `docs/media/README.md`.
-- Added regression coverage for aircraft identity narration and optional-key
-  loading feedback.
-
-### Changed
-
-- First-run presentation now opens with Detection `DENSE` at 75%, `ELASTIC`
-  allocation, Fade 7%, Outside 1%, scope feather 11%, and aircraft 3D models in
-  `PROXIMITY`. Stored state and share links still override these baselines.
-- The 17 selected README GIFs remain unchanged and are documented separately
-  from the two owner-published PNGs.
-- Bundled datacenter and dam snapshots now omit contact-oriented fields and
-  note values containing email or phone identifiers. Feature geometry, names,
-  operator/capacity/river metadata, counts, and ODbL terms are unchanged.
-- Public documentation and the L9 release matrix no longer reference non-public
-  planning material or repository history.
-
-### Fixed
-
-- A missing optional FIRMS key no longer turns the complete Environmental
-  mission into `LOAD FAILED`. The FIRMS row still reports `KEY REQUIRED`, while
-  earthquakes continue to load. Real lifecycle and fetch failures retain
-  failure priority.
-- The mapped-installations layer retries after an unavailable request when it is
-  enabled or the camera settles.
-- Aircraft trails attach to the rendered aircraft transform and remain near the
-  rear center across headings. Parked aircraft do not draw a moving head
-  segment.
-- Grounded aircraft keep validated floor evidence through temporary terrain
-  outages and wait for measured photoreal-surface evidence before a 3D model
-  takes over from its billboard.
-- Cockpit altitude uses aviation MSL data rather than Cesium render height.
-
-### Security
-
-- Production transitive dependencies resolve to patched DOMPurify and
-  protobufjs releases without changing the Cesium version or application APIs.
-- Production dependency audit reports no known advisories; remaining audit
-  findings are confined to development and QA tooling.
-
-## [Unreleased] — 2026-08-23
-
-### Added
-
-- Added a first-run mission launcher for Contacts, Space Missions,
-  Environmental, and manual exploration.
-- Added terrain-validity gating and bounded last-known placement for grounded
-  aircraft models.
-
-### Changed
-
-- Environmental consistently presents both earthquakes and NASA FIRMS fires,
-  with honest optional-key degradation.
-- The tracked aircraft trail acceptance bar is visual: roughly rear-center,
-  stable across headings, with minor hull overlap allowed and no conspicuous
-  top, bottom, or lateral projection.
-
-## [Unreleased] — 2026-08-18 to 2026-08-22
-
-### Added
-
-- Added the four-source Map Source tray, share-link v2 state, cockpit/context
-  voice parity, MSL altitude readouts, and close-range tracked aircraft models.
-- Added the L9 release-candidate matrix, AIS feed watchdog, voice cost controls,
-  satellite classes, and the shared world-overlay host.
-- Added deterministic first-run, map-source, floor, overlay, tracking, and
-  aircraft-model regression harnesses.
-
-### Changed
-
-- Consolidated world labels, cards, tracked readouts, CCTV thumbnails, cable
-  labels, mission labels, and detection presentation under shared allocation and
-  lifecycle rules.
-- Reduced idle rendering through the render governor and explicit scope mask.
-- Improved cockpit layout, context restoration, keyless feed honesty, and
-  aircraft 2D/3D handoffs.
-
-### Fixed
-
-- Fixed degenerate depth picks, map-source restore states, route-camera motion,
-  bright-ground label readability, grounded display flooring, and cross-layer
-  tracking cleanup.
-- Fixed stale overlay callbacks, parked-idle render leaks, cable-label sweep
-  starvation, and several share-link state conflicts.
-
-## [Unreleased] — 2026-08-02 to 2026-08-16
-
-### Added
-
-- Added Global Context modes, Cockpit briefing surfaces, Radio context,
-  satellite mission replay, and real per-class aircraft models with adjacent
-  provenance records.
-- Added a shared screen-space overlay system with bounded allocation for labels,
-  cards, callouts, detection brackets, and selected-object presentation.
-
-### Changed
-
-- Unified right-side product controls and responsive cockpit/map layouts.
-- Migrated public-safe neighborhood geometry to DataSF and tightened safe local
-  development defaults.
-- Improved proxy resilience, annotation outline bounds, CCTV enable pacing,
-  contact de-emphasis, and deterministic visual stacking.
-
-## [Unreleased] — July 2026
-
-### Added
-
-- Added live NASA FIRMS fires, optional live TomTom traffic, Caltrans and TfL
-  CCTV packs, CCTV viewsheds and direct-manipulation calibration, citywide CCTV
-  cards, Natural Earth regions, analyst queries, and voice routing QA.
-- Added the end-to-end vertical-datum system for aircraft, vessels, CCTV,
-  annotations, trails, and terrain-aware rendering.
-- Added aircraft class silhouettes, path-derived display heading, ADSBDB
-  enrichment, cached CelesTrak TLE lookup, and next-ISS-pass prediction.
-
-### Fixed
-
-- Fixed elevated-airport aircraft placement, vessel sea-surface placement,
-  close-zoom FIRMS anchors, antimeridian region framing, annotation resolution,
-  cross-layer tracking ownership, and CCTV projection lifecycle issues.
-
-## [Unreleased] — June 2026
-
-### Added
-
-- Added OpenAI Realtime voice control, scene-aware entity context, viewport image
-  grounding, the AI HUD summary, live AIS vessels, infrastructure layers, map
-  source switching, free-text navigation, and server-side data proxies.
-- Added hybrid map annotations, 3D aircraft, panoptic detection, tracking
-  harnesses, and public data attribution.
-- Added MIT source licensing, security guidance, contribution guidance, data
-  source notices, and third-party asset boundaries.
-
-### Changed
-
-- Removed the experimental AI video-edit style and retained seven deterministic
-  visual styles.
-- Moved Realtime text-history trimming to the server-side retention policy while
-  keeping only the latest viewport image in conversation context.
-
-## [0.7.0] — 2026-02-18
-
-- Added the Bikeshare Pulse layer and panoptic label improvements.
-- Improved tracked-item boxes, post-render alignment, and CCTV projection
-  quality.
-- Removed the experimental shift-drag CCTV calibration interaction.
-
-## [0.6.0] — 2026-02-10
-
-- Added the initial multi-layer 3D globe experience, visual styles, live
-  aircraft, satellites, earthquakes, CCTV, traffic, FIRMS, infrastructure, and
-  performance controls.
-- Added entity inspection, tracking, scenes, keyboard controls, and shareable
-  views.
-
-## [0.1.0] — 2026-02-09
-
-- Initial project version.
+Eye of Atlas is built on [God's Eye View](https://github.com/bilawalsidhu/gods-eye-view)
+by Bilawal Sidhu (MIT). See `NOTICE`.

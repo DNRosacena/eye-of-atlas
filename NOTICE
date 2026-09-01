@@ -1,0 +1,77 @@
+Eye of Atlas
+Copyright (c) 2026 Daxen Nathamiel Rosacena
+
+This product is built on God's Eye View, an open-source project by
+Bilawal Sidhu, and retains substantial portions of its source code.
+
+────────────────────────────────────────────────────────────────────────────
+God's Eye View
+https://github.com/bilawalsidhu/gods-eye-view
+
+MIT License
+Copyright (c) 2026 Bilawal Sidhu
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+────────────────────────────────────────────────────────────────────────────
+
+
+THIRD-PARTY DATA
+────────────────────────────────────────────────────────────────────────────
+The MIT licence above covers SOURCE CODE ONLY. It does not cover the data
+this application displays. Every data source carries its own licence and its
+own attribution obligation.
+
+The authoritative record is COMMERCIAL_COMPLIANCE.md, which lists each
+source, its licence, its commercial classification, the exact attribution
+string required, and the provider rate/cache rules we are bound by.
+
+In-app attribution is a LICENCE CONDITION, not a courtesy. It is rendered in
+the "Data attribution" panel and must remain visible whenever the
+corresponding data is displayed.
+
+Sources in use, and what each requires:
+
+  Google Maps Platform ......... Google logo, 16-19dp, unmodified, and never
+                                 overlapped or obscured by any other logo
+                                 (this constrains ad placement). Content must
+                                 not be pre-fetched, indexed, stored or cached.
+  OpenStreetMap contributors ... "(c) OpenStreetMap contributors" (ODbL 1.0)
+                                 Applies to Overpass, Nominatim, and the
+                                 bundled datacenter and dam datasets.
+  adsb.lol ..................... "adsb.lol contributors" (ODbL 1.0)
+  U.S. Geological Survey ....... "Data courtesy of the U.S. Geological Survey"
+  NASA FIRMS ................... Acknowledgement of NASA's Fire Information
+                                 for Resource Management System (EOSDIS)
+  CelesTrak .................... "CelesTrak (celestrak.org), Dr. T.S. Kelso"
+  GDELT Project ................ Citation plus a link to gdeltproject.org
+  Natural Earth ................ "Made with Natural Earth" (courtesy)
+
+ODbL note: displaying this data is unrestricted with attribution. The
+share-alike obligation attaches to publishing a DERIVED DATABASE. Eye of
+Atlas renders and discards. Adding a data-export feature, or persisting
+OSM/adsb.lol results into a queryable store, would change that analysis and
+requires legal review first.
+
+Sources deliberately REMOVED as incompatible with commercial deployment:
+  OpenSky Network .............. non-commercial; prohibits ad-supported use
+  TeleGeography cables ......... CC BY-NC-SA 3.0 (NonCommercial)
+  Google News RSS .............. personal/non-commercial use only
+  Open-Meteo (free API) ........ free tier forbids ad-supported use
+
+Do not reintroduce any of the above without a written commercial licence.

@@ -1,3 +1,4 @@
+# ── Upstream God's Eye View ─────────────────────────────────────────────────
 node_modules
 dist
 .env
@@ -12,3 +13,22 @@ output/
 3d-models/
 pinokio/ENVIRONMENT
 pinokio/.installed
+
+# ── Eye of Atlas additions ──────────────────────────────────────────────────
+
+# Secrets: real keys live in .env and provider dashboards, never in git.
+.env.*
+!.env.example
+
+# Wrangler / miniflare local runtime state
+.wrangler/
+
+# Scratch clone of upstream used during the Stage 0 audit. Redundant now that
+# this repo IS the fork and `upstream` is a remote — safe to delete locally.
+gods-eye-view-upstream/
+
+# Editor / OS
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

@@ -70,6 +70,15 @@ export const KEY_SETUP_KEYS = Object.freeze([
     tier: 'free',
   }),
   Object.freeze({
+    id: 'arcgis',
+    title: 'ARCGIS',
+    unlocks: 'Esri satellite basemap (keyless landing falls back to OSM without it)',
+    getUrl: 'https://location.arcgis.com/',
+    envVars: Object.freeze(['ARCGIS_API_KEY']),
+    tier: 'free',
+    clientExposed: true,
+  }),
+  Object.freeze({
     id: 'cesium-ion',
     title: 'CESIUM ION',
     unlocks: 'Bing imagery map stacks + world terrain',
@@ -77,14 +86,6 @@ export const KEY_SETUP_KEYS = Object.freeze([
     envVars: Object.freeze(['CESIUM_ION_TOKEN']),
     tier: 'free',
     clientExposed: true,
-  }),
-  Object.freeze({
-    id: 'opensky',
-    title: 'OPENSKY',
-    unlocks: 'More flight-polling credits (anonymous works without)',
-    getUrl: 'https://opensky-network.org',
-    envVars: Object.freeze(['OPENSKY_CLIENT_ID', 'OPENSKY_CLIENT_SECRET']),
-    tier: 'free',
   }),
   Object.freeze({
     id: 'launch-library',

@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, 'stage-*/**']
 
 permissions:
   contents: read
@@ -13,6 +13,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ── Upstream God's Eye View verification, kept as inherited ────────────────
+  # The app's own suite (~2,600 tests, including per-frame allocation budgets).
+  # It is a valuable regression net for our Stage 1 refactors, so it is
+  # preserved rather than replaced.
   verify:
     name: Node ${{ matrix.node }}
     runs-on: ubuntu-latest
@@ -75,3 +79,113 @@ jobs:
 
       - name: Build production bundle
         run: npm run build
+
+  # ── Eye of Atlas additions ────────────────────────────────────────────────
+
+  worker:
+    name: Worker (api-proxy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: workers/api-proxy
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: workers/api-proxy/package-lock.json
+
+      - run: npm ci
+
+      - name: Syntax check
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Audit
+        run: npm audit --audit-level=high
+
+  compliance:
+    name: Compliance guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # Cheap backstop against the one mistake that is expensive to undo.
+      # .env.example placeholders are empty, so they do not trip this.
+      - name: Scan for key-shaped literals
+        run: |
+          # Two stages, because docs and tests legitimately contain values
+          # SHAPED like keys: .env.example ships `your_google_maps_api_key_here`
+          # and keySetupCore.test.mjs asserts against that exact placeholder.
+          # Stage 1 finds candidates; stage 2 drops recognisable placeholders.
+          candidates="$(git grep -nIE \
+            'AIza[0-9A-Za-z_-]{30,}|sk-[A-Za-z0-9]{32,}|(FIRMS_MAP_KEY|GOOGLE_[A-Z_]*API_KEY|GEMINI_API_KEY|ARCGIS_API_KEY)[[:space:]]*=[[:space:]]*[A-Za-z0-9_-]{16,}' \
+            -- ':!*.md' ':!.github/workflows/*' || true)"
+          suspicious="$(printf '%s\n' "$candidates" \
+            | grep -vaiE 'your_|_here|placeholder|example|fake|dummy|sample|not_a_real|xxxx' || true)"
+          if [ -n "$suspicious" ]; then
+            printf '%s\n' "$suspicious"
+            echo "::error::Possible committed secret. Real keys belong in .env or the provider dashboard."
+            exit 1
+          fi
+          echo "No key-shaped literals found."
+
+      - name: Ensure .env is not tracked
+        run: |
+          if git ls-files --error-unmatch .env 2>/dev/null; then
+            echo "::error::.env is tracked by git. It must be gitignored."
+            exit 1
+          fi
+          echo ".env is not tracked."
+
+      # Class-D sources were removed for licensing reasons. Reintroducing one
+      # would be a licence breach in an ad-supported product, so this fails the
+      # build rather than relying on review to catch it.
+      - name: No Class-D data source reintroduced
+        run: |
+          status=0
+          check() {
+            if git grep -nIE "$2" -- \
+                 ':!*.md' ':!.github/workflows/*' ':!docs/*'; then
+              echo "::error::Class-D source reintroduced: $1. See COMMERCIAL_COMPLIANCE.md."
+              status=1
+            fi
+          }
+          # Two patterns, because a first pass of this cleanup missed
+          # scripts/dev-fresh.sh and the whole pinokio/ launcher: they carried
+          # OPENSKY_* credentials and an "opensky-network" keychain service
+          # name, never the .org domain the original guard looked for.
+          check "OpenSky endpoint" 'opensky-network|/api/opensky'
+          # Credential names are checked outside tests: tests legitimately name
+          # removed variables to assert they STAY removed. Note this is
+          # deliberately not `OPENSKY_[A-Z_]+`, which would flag
+          # src/data/aircraftClass.js's OPENSKY_CATEGORY — an ADS-B emitter
+          # category table that adsb.lol normalises into, not a credential.
+          if git grep -nIE 'OPENSKY_(CLIENT_ID|CLIENT_SECRET|AUTH_MODE|USERNAME|PASSWORD|CREDENTIALS_FILE)' \
+               -- ':!*.md' ':!.github/workflows/*' ':!docs/*' ':!*.test.mjs'; then
+            echo "::error::OpenSky credentials reintroduced. See COMMERCIAL_COMPLIANCE.md."
+            status=1
+          fi
+          # The keyless Esri endpoint is Noncommercial-only. The licensed path
+          # is ibasemaps-api.arcgis.com via ArcGIS Location Platform, so any
+          # reappearance of the open host in code is a licensing regression.
+          # Matched with the protocol so the DO-NOT-REVERT comments don't trip it.
+          check "Esri keyless"    'https://services\.arcgisonline\.com'
+          check "TeleGeography"   'telegeography|submarinecablemap'
+          check "Google News RSS" 'news\.google\.com'
+          check "Open-Meteo"      'api\.open-meteo\.com'
+          if [ "$status" -eq 0 ]; then echo "No Class-D sources present."; fi
+          exit "$status"
