@@ -30,9 +30,14 @@ export const FIRST_RUN_SESSION_KEY = 'gev:first-run-mission-session:v1';
  * call at review time, not an edit.
  * @type {'ENVIRONMENTAL'|'EARTH_WATCH'|'ACTIVE_EVENTS'}
  */
-export const ENVIRONMENTAL_LABEL_CHOICE = 'ENVIRONMENTAL';
+/* Eye of Atlas: plain language over operator vocabulary. Master plan §2.3 puts
+   the "curious general public" first, and §2.4 asks for "visually impressive BUT
+   ACCESSIBLE" — "planetary observation deck, not spy thriller". A first-time
+   visitor should not have to decode "ENVIRONMENTAL" to find earthquakes. */
+export const ENVIRONMENTAL_LABEL_CHOICE = 'EARTHQUAKES_FIRES';
 
 const ENVIRONMENTAL_LABELS = Object.freeze({
+  EARTHQUAKES_FIRES: Object.freeze({ title: 'Earthquakes & wildfires' }),
   ENVIRONMENTAL: Object.freeze({ title: 'ENVIRONMENTAL' }),
   EARTH_WATCH: Object.freeze({ title: 'EARTH WATCH' }),
   ACTIVE_EVENTS: Object.freeze({ title: 'ACTIVE EVENTS' }),

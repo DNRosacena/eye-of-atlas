@@ -9,7 +9,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0" rel="stylesheet" />
+  <!-- display=block: an icon font has no readable fallback. Without it the
+       browser paints the LIGATURE NAMES as text while the font loads, so a
+       first-time visitor briefly sees "layers_clear" and "bolt" instead of
+       icons. `block` keeps them invisible until the glyphs arrive. -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0&display=block" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
 </head>
 <body>
@@ -836,25 +840,15 @@
   <aside id="first-run-launcher" role="dialog" aria-labelledby="first-run-title" aria-describedby="first-run-description" hidden>
     <div class="first-run-scanline" aria-hidden="true"></div>
     <header class="first-run-header">
-      <span class="first-run-kicker">MISSION CONTROL · FIRST LAUNCH</span>
+      <span class="first-run-kicker">LIVE FROM PUBLIC DATA</span>
     </header>
     <h2 id="first-run-title">Choose your first view</h2>
     <!-- The card's one persuasive line, owner-authored and VERBATIM (2026-08-23)
          — including the unspaced em dash. The arc it has to carry: this looks
          like something you should not have access to → the sources are all
          public → the data is real. Tile subcopy stays purely functional. -->
-    <p id="first-run-description">It feels like a forbidden cockpit—then you realize the sources are public and the data is real.</p>
+    <p id="first-run-description">Everything here is really happening, right now — from public feeds anyone can read.</p>
     <div class="first-run-choices">
-      <button type="button" data-first-run-choice="contacts">
-        <span class="material-symbols-outlined" aria-hidden="true">radar</span>
-        <span><strong>LIVE CONTACTS</strong><small>Aircraft, vessels and nearby intelligence</small></span>
-        <span class="material-symbols-outlined first-run-arrow" aria-hidden="true">arrow_forward</span>
-      </button>
-      <button type="button" data-first-run-choice="space-missions">
-        <span class="material-symbols-outlined" aria-hidden="true">rocket_launch</span>
-        <span><strong>SPACE MISSIONS</strong><small>Launches, spacecraft and orbital context</small></span>
-        <span class="material-symbols-outlined first-run-arrow" aria-hidden="true">arrow_forward</span>
-      </button>
       <button type="button" data-first-run-choice="environmental">
         <span class="material-symbols-outlined" aria-hidden="true">local_fire_department</span>
         <!-- Title text is painted from ENVIRONMENTAL_LABEL_CHOICE at init. -->
@@ -864,9 +858,19 @@
         <span><strong data-first-run-environmental-title>ENVIRONMENTAL</strong><small>Live earthquakes and active fires, from USGS and NASA</small></span>
         <span class="material-symbols-outlined first-run-arrow" aria-hidden="true">arrow_forward</span>
       </button>
+      <button type="button" data-first-run-choice="space-missions">
+        <span class="material-symbols-outlined" aria-hidden="true">rocket_launch</span>
+        <span><strong>Satellites &amp; launches</strong><small>What is overhead now, and what launched recently</small></span>
+        <span class="material-symbols-outlined first-run-arrow" aria-hidden="true">arrow_forward</span>
+      </button>
+      <button type="button" data-first-run-choice="contacts">
+        <span class="material-symbols-outlined" aria-hidden="true">radar</span>
+        <span><strong>Aircraft near a place</strong><small>Live flights overhead — regional coverage, not every aircraft</small></span>
+        <span class="material-symbols-outlined first-run-arrow" aria-hidden="true">arrow_forward</span>
+      </button>
       <button type="button" class="first-run-explore" data-first-run-choice="explore">
         <span class="material-symbols-outlined" aria-hidden="true">public</span>
-        <span><strong>EXPLORE MANUALLY</strong><small>Begin with a clean globe</small></span>
+        <span><strong>Just show me the globe</strong><small>Start clean and choose your own layers</small></span>
         <span class="material-symbols-outlined first-run-arrow" aria-hidden="true">arrow_forward</span>
       </button>
     </div>
@@ -879,7 +883,7 @@
     </div>
     <!-- Kept out of the footer row: it swaps to mission progress and errors, and
          a live region that also holds layout makes the row jump as it speaks. -->
-    <p class="first-run-note" data-first-run-status role="status" aria-live="polite">Tip: the GEV MIC button in the dock lets you talk to the map.</p>
+    <p class="first-run-note" data-first-run-status role="status" aria-live="polite">Tip: click anything on the globe to see what it is.</p>
   </aside>
 
   <!-- POWER UP — in-app key setup. Dev-server only: src/keySetup.js removes

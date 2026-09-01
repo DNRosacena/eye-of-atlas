@@ -9600,3 +9600,52 @@ body.scene-playback-mode #key-setup {
   justify-content: center;
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MVP SURFACE — hide chrome for features that are not in v1
+                                                        (Eye of Atlas, Stage 1)
+
+   Measured on first load, after dismissing onboarding: 13 visible surfaces and
+   13 controls competing for attention, with no hierarchy — the "users don't
+   know where to go" problem. But most of it was not density for its own sake;
+   it was chrome for features this product has already cut:
+
+     traffic / CCTV / radio   cut from MVP (master plan §5.3)
+     voice AI                 dropped from v1, replaced by text Ask Atlas (§3.10)
+     "POWER UP · N KEYS"      a self-hosting affordance from upstream. It tells a
+                              visitor about missing API keys, which is our
+                              problem, not theirs.
+
+   These are HIDDEN, not deleted. The layer modules still register and still
+   work, so nothing is lost and this is a one-line revert per rule. Deleting the
+   code (cctv.js alone is 198 KB) belongs with Stage 1's layer-set work, not a
+   UI pass.
+
+   Re-enable any of these by removing its rule.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Self-hosting chrome: "POWER UP · 7 KEYS WAITING" is prime real estate spent
+   telling visitors about credentials they cannot supply. */
+#key-setup-chip {
+  display: none !important;
+}
+
+/* Sync/progress readouts for cut layers. These render even while their layer is
+   off, so they are pure noise in the default view. */
+#traffic-sync-label,
+#cctv-sync-label,
+#cctv-sync-progress {
+  display: none !important;
+}
+
+/* Voice AI dock controls (mic, ON/OFF, cost tier, standby readout). v1 has no
+   voice; Ask Atlas is text and arrives in Stage 3. */
+.gev-voice-control,
+.gev-mic-label,
+.gev-voice-readout,
+.gev-voice-cost,
+.gev-voice-tier-btn,
+#gev-voice-tier,
+#gev-voice-button {
+  display: none !important;
+}
