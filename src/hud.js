@@ -125,7 +125,12 @@ export class IntelHUD {
     };
 
     // Session-consistent pseudorandom identifiers (generated once at construction)
-    this._missionId = `KH11-${4000 + Math.floor(Math.random() * 200)}`;
+    // Session id for the readout. Deliberately NOT "KH11-": that is a real US
+    // reconnaissance satellite programme, and master plan §2.4 puts this product
+    // at a "planetary observation deck, not spy thriller". A neutral session
+    // label keeps the instrument aesthetic without impersonating a classified
+    // system.
+    this._missionId = `ATLAS-${4000 + Math.floor(Math.random() * 200)}`;
     this._sensorId = `OPS-${4100 + Math.floor(Math.random() * 100)}`;
     this._orbitNum = 47000 + Math.floor(Math.random() * 1000);
     this._passNum = 100 + Math.floor(Math.random() * 200);
@@ -146,7 +151,7 @@ export class IntelHUD {
 
     this._el.innerHTML = `
       <div class="hud-top-bar">
-        <span class="hud-top-bar-left">TOP SECRET // SI-TK // NOFORN</span>
+        <span class="hud-top-bar-left">LIVE \u00b7 PUBLIC SOURCES \u00b7 OPEN DATA</span>
         <span class="hud-top-bar-center">${this._missionId}</span>
         <span class="hud-top-bar-right">PAGE 1/1</span>
       </div>
@@ -154,7 +159,7 @@ export class IntelHUD {
       <div class="hud-corner hud-top-left">
         <div class="hud-bracket">┌</div>
         <div class="hud-content">
-          <div class="hud-classification">TOP SECRET // SI-TK // NOFORN</div>
+          <div class="hud-classification">LIVE \u00b7 PUBLIC SOURCES \u00b7 OPEN DATA</div>
           <div class="hud-system">${this._missionId}  ${this._sensorId}</div>
           <div class="hud-mode" id="hud-mode">NORMAL</div>
           <div class="hud-summary-wrap">
