@@ -61,6 +61,24 @@ Four data sources whose terms forbid use in a monetised product:
   built from locally accumulated fixes, which was already the fallback on any
   backfill failure. Repointing at adsb.lol traces is a Stage 1 follow-up.
 
+#### Added
+- **A production Worker that owns `/api/*`.** Until now every `/api/*` endpoint
+  existed only as Vite dev-server middleware, so on the deployed site they did
+  not 404 — the SPA fallback returned `index.html` with a **200**, and the
+  client failed with `Unexpected token '<'` while parsing HTML as JSON. That is
+  worse than a 404 because it looks like success. The Worker matches `/api/*`
+  before asset serving, so the fallback can no longer reach those routes.
+  - `/api/geocode` is implemented (place search, P0) with a 24 h Cache API
+    entry, satisfying Nominatim's "results must be cached".
+  - Every other `/api/*` path returns an honest JSON **501**, which lets a
+    client distinguish "not built yet" from "broken".
+  - Geocoding logic moved to `src/server/geocode.js`, shared by the dev
+    middleware and the Worker so the two cannot drift.
+  - ⚠️ Known gap, documented in the file: Nominatim's 1 req/s cap cannot be
+    enforced across Worker isolates without KV or a Durable Object. The 24 h
+    cache and pre-launch `robots.txt` cover it for now; real traffic needs the
+    shared counter or self-hosted Nominatim.
+
 #### Changed
 - **Deployment is a Worker with static assets, not Cloudflare Pages.** The
   unified Cloudflare dashboard creates repo-connected projects as Workers
