@@ -61,6 +61,23 @@ Four data sources whose terms forbid use in a monetised product:
   built from locally accumulated fixes, which was already the fallback on any
   backfill failure. Repointing at adsb.lol traces is a Stage 1 follow-up.
 
+#### Fixed
+- **Location search works again.** Dropping the Google Maps key took Google
+  Geocoding with it, and search — a P0 MVP feature — was throwing
+  `No Google Maps API key available for geocoding`. It now runs through a new
+  `/api/geocode` proxy backed by OpenStreetMap **Nominatim**.
+  - Server-side by necessity: Nominatim caps use at 1 request/second and
+    *requires* caching, neither honourable from a browser across many visitors.
+  - Shares the existing reverse-geocode queue, so forward and reverse geocoding
+    together stay inside one 1 req/s budget rather than one each.
+  - 24 h cache; repeat queries served in 7 ms against 706 ms cold.
+  - Nominatim's `category`/`type`/`addresstype` are mapped onto the Google type
+    tokens the camera-framing logic already switches on, so that logic is
+    untouched — the same normalise-at-the-edge approach used for adsb.lol
+    flights. Manila resolves as `locality`, Mount Everest as `natural_feature`.
+  - The Google Places "did you mean the one on screen" refinement is now absent
+    rather than broken: it already returned null on a failed response.
+
 #### Resolved
 - **The P0 low-cost imagery fallback now has a licensed source.** ArcGIS
   Location Platform supplies the satellite basemap, the keyless-boot path and
