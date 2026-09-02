@@ -6606,6 +6606,158 @@ function fetchRegionalPlace(point) {
   return task;
 }
 
+/* ── Forward geocoding (place search) ─────────────────────────────────────────
+ * Replaces the browser's direct call to Google Geocoding, which needed the
+ * client-exposed Google key. The owner dropped that key (no card on file), so
+ * search — a P0 MVP feature — would otherwise throw.
+ *
+ * Nominatim's usage policy is strict and non-negotiable:
+ *   - an absolute maximum of 1 request per second       -> shares the existing
+ *     _nominatimQueue with the reverse-geocode path, so BOTH together stay
+ *     inside one budget rather than one each
+ *   - "Results must be cached on your side"             -> GEOCODE_CACHE below
+ *   - a User-Agent that identifies the application      -> set on the request
+ *   - applications whose PRIMARY function is geocoding must self-host. We are a
+ *     globe that happens to have a search box, so we are on the right side of
+ *     that line — but it is a line, and heavy use means self-hosting or an
+ *     alternative provider (COMMERCIAL_COMPLIANCE.md §6.4).
+ *
+ * The response is normalised into the Google Geocoding SHAPE the client already
+ * consumes, so src/locations.js keeps its framing logic unchanged — the same
+ * trick adsbLolFallback.js uses for flights.
+ */
+const GEOCODE_CACHE = new Map();
+const GEOCODE_CACHE_MAX = 300;
+const GEOCODE_CACHE_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Map Nominatim's category/type/addresstype onto the Google type tokens that
+ * geocodeNavigationMode() in src/locations.js switches on. Without this the
+ * camera would frame every result identically.
+ */
+export function nominatimTypesToGoogle(entry) {
+  const addressType = String(entry?.addresstype || '').toLowerCase();
+  const category = String(entry?.category || entry?.class || '').toLowerCase();
+  const type = String(entry?.type || '').toLowerCase();
+  const out = [];
+  const push = (...t) => { for (const v of t) if (!out.includes(v)) out.push(v); };
+
+  if (addressType === 'country' || type === 'country') push('country', 'political');
+  else if (addressType === 'state' || type === 'state') push('administrative_area_level_1', 'political');
+  else if (addressType === 'county' || type === 'county') push('administrative_area_level_2', 'political');
+  else if (['city', 'town', 'municipality'].includes(addressType) || ['city', 'town'].includes(type)) push('locality', 'political');
+  else if (['village', 'hamlet'].includes(addressType) || ['village', 'hamlet'].includes(type)) push('locality', 'political');
+  else if (['suburb', 'neighbourhood', 'quarter', 'borough'].includes(addressType)) push('sublocality', 'neighborhood', 'political');
+  else if (addressType === 'postcode' || type === 'postcode') push('postal_code');
+  else if (category === 'highway') push('route');
+  else if (category === 'natural') push('natural_feature');
+  else if (category === 'leisure' && type === 'park') push('park');
+  else if (category === 'boundary') push('administrative_area_level_1', 'political');
+
+  if (!out.length) push('point_of_interest', 'establishment');
+  return out;
+}
+
+/** Nominatim boundingbox is [south, north, west, east] as strings. */
+export function nominatimToGoogleGeocode(payload) {
+  const entry = Array.isArray(payload) ? payload[0] : null;
+  const lat = Number(entry?.lat);
+  const lon = Number(entry?.lon);
+  if (!entry || !Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return { status: 'ZERO_RESULTS', results: [] };
+  }
+  const bb = Array.isArray(entry.boundingbox) ? entry.boundingbox.map(Number) : null;
+  const geometry = { location: { lat, lng: lon } };
+  if (bb && bb.length === 4 && bb.every(Number.isFinite)) {
+    geometry.viewport = {
+      southwest: { lat: bb[0], lng: bb[2] },
+      northeast: { lat: bb[1], lng: bb[3] },
+    };
+  }
+  return {
+    status: 'OK',
+    results: [{
+      formatted_address: String(entry.display_name || '').trim(),
+      types: nominatimTypesToGoogle(entry),
+      geometry,
+    }],
+  };
+}
+
+/** viewportBias() sends "swLat,swLng|neLat,neLng"; Nominatim wants w,n,e,s. */
+export function biasToViewbox(bias) {
+  const m = /^(-?[\d.]+),(-?[\d.]+)\|(-?[\d.]+),(-?[\d.]+)$/.exec(String(bias || '').trim());
+  if (!m) return null;
+  const [swLat, swLng, neLat, neLng] = m.slice(1).map(Number);
+  if (![swLat, swLng, neLat, neLng].every(Number.isFinite)) return null;
+  return `${swLng},${neLat},${neLng},${swLat}`;
+}
+
+function geocodeProxy() {
+  const install = (middlewares) => {
+    middlewares.use('/api/geocode', async (req, res) => {
+      try {
+        const incoming = new URL(req.url || '', 'http://localhost');
+        const query = String(incoming.searchParams.get('q') || '').trim().slice(0, 200);
+        if (!query) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ status: 'INVALID_REQUEST', results: [] }));
+          return;
+        }
+        const viewbox = biasToViewbox(incoming.searchParams.get('bias'));
+        const cacheKey = `${query.toLowerCase()}|${viewbox || ''}`;
+        const hit = GEOCODE_CACHE.get(cacheKey);
+        if (hit && Date.now() - hit.at < GEOCODE_CACHE_MS) {
+          res.writeHead(200, { 'Content-Type': 'application/json', 'X-Geocode-Cache': 'HIT' });
+          res.end(hit.body);
+          return;
+        }
+
+        const task = _nominatimQueue.then(async () => {
+          const waitMs = Math.max(0, 1100 - (Date.now() - _nominatimLastRequestAt));
+          if (waitMs) await new Promise((resolve) => setTimeout(resolve, waitMs));
+          _nominatimLastRequestAt = Date.now();
+          const params = new URLSearchParams({
+            q: query,
+            format: 'jsonv2',
+            limit: '1',
+            addressdetails: '1',
+            'accept-language': 'en',
+          });
+          // bounded=0 -> prefer the current view, but still find places outside it.
+          if (viewbox) { params.set('viewbox', viewbox); params.set('bounded', '0'); }
+          return fetchRegionalJson(`https://nominatim.openstreetmap.org/search?${params}`, {
+            headers: {
+              'User-Agent': 'EyeOfAtlas/0.1 (+https://github.com/DNRosacena/eye-of-atlas)',
+              Referer: 'https://github.com/DNRosacena/eye-of-atlas',
+            },
+          });
+        });
+        _nominatimQueue = task.catch(() => null);
+
+        const body = JSON.stringify(nominatimToGoogleGeocode(await task));
+        GEOCODE_CACHE.delete(cacheKey);
+        GEOCODE_CACHE.set(cacheKey, { at: Date.now(), body });
+        while (GEOCODE_CACHE.size > GEOCODE_CACHE_MAX) {
+          GEOCODE_CACHE.delete(GEOCODE_CACHE.keys().next().value);
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json', 'X-Geocode-Cache': 'MISS' });
+        res.end(body);
+      } catch (error) {
+        console.warn('[geocode-proxy]', error?.message || error);
+        if (res.headersSent) return;
+        res.writeHead(502, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'UNKNOWN_ERROR', results: [] }));
+      }
+    });
+  };
+  return {
+    name: 'geocode-proxy',
+    configureServer: (server) => install(server.middlewares),
+    configurePreviewServer: (server) => install(server.middlewares),
+  };
+}
+
 async function fetchRegionalNews(place) {
   const query = place?.locality || place?.region || place?.country;
   if (!query) return { status: 'unavailable', query: null, articles: [], source: null };
@@ -7063,6 +7215,7 @@ export default defineConfig(({ mode }) => {
       overpassProxy(),
       militaryInstallationsProxy(),
       regionalBriefProxy(),
+      geocodeProxy(),
       cctvProxy(),
       radioBrowserProxy(),
       gbfsProxy(),

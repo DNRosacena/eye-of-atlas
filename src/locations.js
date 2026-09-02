@@ -347,18 +347,24 @@ export const CANCELLED_SEARCH = Object.freeze({ cancelled: true });
  * default; precise landmarks/buildings use close landmark framing.
  */
 export async function searchAndFlyTo(viewer, query, options = {}) {
-  const apiKey = window.__GOOGLE_MAPS_API_KEY__ || import.meta.env.GOOGLE_MAPS_API_KEY;
-  if (!apiKey) throw new Error('No Google Maps API key available for geocoding');
-
   const beforeFly = typeof options.beforeFly === 'function' ? options.beforeFly : null;
   const mayFly = () => beforeFly === null || beforeFly() !== false;
 
-  // Viewport-biased geocode — the same bias annotationResolver's geocodePlace uses:
+  // Geocoding runs through our own /api/geocode (OpenStreetMap Nominatim), NOT
+  // Google. Google Geocoding needed the client-exposed Maps key, which this
+  // product does not carry. The proxy normalises Nominatim into the Google
+  // Geocoding SHAPE, so everything below this line is unchanged.
+  //
+  // It must stay server-side: Nominatim's policy caps use at 1 request/second
+  // and REQUIRES caching, neither of which can be honoured from a browser
+  // spread across many visitors (COMMERCIAL_COMPLIANCE.md §6.4).
+  //
+  // Viewport-biased — the same bias annotationResolver's geocodePlace uses:
   // "Sixth Street" spoken over Austin must prefer the Sixth Street on screen, not a
   // same-named road in another city (or the wrong end of town — the W 6th vs E 6th bug).
-  let url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${apiKey}`;
+  let url = `/api/geocode?q=${encodeURIComponent(query)}`;
   const bias = viewportBias(viewer);
-  if (bias) url += `&bounds=${bias}`;
+  if (bias) url += `&bias=${encodeURIComponent(bias)}`;
   const response = await fetch(url);
   const data = await response.json();
 
