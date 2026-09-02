@@ -61,6 +61,16 @@ Four data sources whose terms forbid use in a monetised product:
   built from locally accumulated fixes, which was already the fallback on any
   backfill failure. Repointing at adsb.lol traces is a Stage 1 follow-up.
 
+#### Changed
+- **Deployment is a Worker with static assets, not Cloudflare Pages.** The
+  unified Cloudflare dashboard creates repo-connected projects as Workers
+  builds, whose injected deploy token has Workers scope and not Pages scope, so
+  `wrangler pages deploy` fails auth. The Worker path is also better for this
+  project: one deployment can serve the static site *and* the `/api/*` routes,
+  where Pages would need a separate Worker bound alongside it. That is how
+  `/api/geocode` reaches production — it is currently Vite dev-server
+  middleware with no production equivalent.
+
 #### Fixed
 - **Location search works again.** Dropping the Google Maps key took Google
   Geocoding with it, and search — a P0 MVP feature — was throwing
