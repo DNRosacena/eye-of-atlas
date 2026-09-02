@@ -43,7 +43,50 @@ not_found_handling = "single-page-application"
 # Named binding so the Worker can hand non-API requests back to static serving.
 binding = "ASSETS"
 
+# ═══════════════════════════════════════════════════════════════════════════
+# ENVIRONMENT VARIABLES — build-time vs runtime. Get this wrong and the symptom
+# is a variable that silently "disappears" from the dashboard after a deploy.
+#
+# There are TWO separate places, and they are not interchangeable:
+#
+#   1. BUILD variables            Settings -> Build
+#      Available while `npm run build` runs. NOT wiped by a deploy.
+#
+#   2. RUNTIME variables/secrets  Settings -> Variables and Secrets
+#      Available to the Worker at request time. For Workers (unlike Pages)
+#      `wrangler deploy` treats THIS FILE as the source of truth and syncs
+#      runtime bindings to match it. Because there is no [vars] block below,
+#      every deploy resets them to none — so anything typed into that section
+#      of the dashboard vanishes on the next build. That is Cloudflare doing
+#      exactly what this config says, not a bug.
+#
+# Where each of ours belongs:
+#
+#   ARCGIS_API_KEY   BUILD.   Vite INLINES it via `define` (vite.config.js) and
+#                             src/main.js reads it as import.meta.env at module
+#                             scope. By the time the Worker runs, the value is
+#                             already a literal inside dist/assets/index-*.js —
+#                             or it is absent and the Esri basemap silently
+#                             falls back to OSM, which is not licensed for
+#                             production traffic. Setting it as a RUNTIME
+#                             variable does nothing at all: nothing reads it
+#                             there. It must be present WHILE THE BUILD RUNS,
+#                             so a redeploy without a rebuild will not pick it
+#                             up.
+#
+#   NODE_VERSION     BUILD.   Pins the toolchain (24). .nvmrc says the same;
+#                             setting it explicitly avoids surprises.
+#
+#   FIRMS_MAP_KEY    RUNTIME, and a SECRET — when Stage 1 wires the fires
+#   GEMINI_API_KEY   layer and Stage 3 wires Ask Atlas. These are real secrets
+#                    that must never reach the browser, so they are read by the
+#                    Worker at request time. Add them with
+#                    `wrangler secret put NAME` — NOT through the dashboard,
+#                    and NOT as [vars] here, because this file is committed.
+#                    Secrets set via `wrangler secret put` are stored encrypted
+#                    and are not clobbered by a deploy the way plain vars are.
+# ═══════════════════════════════════════════════════════════════════════════
+
 # ── Dashboard settings (not expressible here) ────────────────────────────────
 #   Build command  : npm run build
 #   Deploy command : npx wrangler deploy
-#   Build vars     : ARCGIS_API_KEY (Text), NODE_VERSION=24
