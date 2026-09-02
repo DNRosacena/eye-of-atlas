@@ -298,6 +298,22 @@ Compliance §6.4 is unanswered. I have designed `/api/geocode` around **Google G
 
 # PART C — Deployment
 
+> **Superseded 2026-09-02 — Workers with static assets, not Pages.**
+> Cloudflare's unified dashboard now creates repo-connected projects as
+> *Workers* builds, and the token it injects for the deploy step carries
+> Workers scope but not Pages scope — so `wrangler pages deploy` fails auth
+> (code 10000) even for an account admin. Rather than fight that, the project
+> is deployed as a Worker serving static assets.
+>
+> This is the better shape anyway: **one Worker can serve the static site and
+> the `/api/*` routes together**, where Pages would need a separate Worker
+> bound alongside. That directly addresses the gap this plan documented — that
+> the 24 `/api/*` endpoints are Vite dev-server middleware with no production
+> equivalent — and it is how `/api/geocode` (place search, P0) ships.
+>
+> The commercial-use reasoning below is unchanged: Cloudflare's free tier
+> permits commercial use, Vercel's Hobby tier does not.
+
 ## 4.1 Cloudflare Pages (primary)
 
 **Why:** free tier permits commercial use, unlimited bandwidth, and Workers integrate natively. **Vercel is excluded** — its Hobby free tier is non-commercial and the moment we run ads we'd be in breach (master plan §24 and compliance §7 both confirm this; it is a licence exclusion, not a preference).

@@ -1,45 +1,40 @@
-# Eye of Atlas — Cloudflare Pages configuration
+# Eye of Atlas — Cloudflare deployment
 #
-# WHY CLOUDFLARE PAGES: its free tier permits commercial use and bandwidth is
-# unlimited. Vercel is EXCLUDED — its Hobby free tier is non-commercial, so the
-# moment ads run we would be in breach. That is a licence exclusion, not a
-# preference (COMMERCIAL_COMPLIANCE.md §7). Netlify is a documented fallback
-# but caps bandwidth at 100 GB/month, which is tight for this payload.
+# WORKERS WITH STATIC ASSETS, not Pages.
 #
-# The API Worker is deployed SEPARATELY from workers/api-proxy/ and bound at
-# /api/* so the app keeps calling same-origin paths and no client code differs
-# between local development and production.
+# The change plan originally specified Cloudflare Pages. Cloudflare's unified
+# dashboard now creates repo-connected projects as WORKERS builds, whose
+# injected deploy token carries Workers scope and not Pages scope — so
+# `wrangler pages deploy` fails auth (code 10000) even for an account admin.
+#
+# Rather than fight that, this takes the path Cloudflare is steering toward,
+# which is also better for us: a Worker can serve the static site AND the
+# /api/* routes from ONE deployment. Pages cannot — it would need a separate
+# Worker bound alongside it. That matters because /api/geocode (place search,
+# a P0 feature) is currently Vite dev-server middleware with no production
+# equivalent; folding it into this Worker is how it ships.
+#
+# Free tier: static asset requests are not billed; Worker invocations are
+# 100,000/day. Serving assets does not consume invocations, so the budget is
+# spent only on real /api/* calls.
+#
+# Commercial-use footing is unchanged: the Cloudflare free tier permits it,
+# which is why Vercel was excluded (COMMERCIAL_COMPLIANCE.md §7).
 
 name = "eye-of-atlas"
-pages_build_output_dir = "dist"
 compatibility_date = "2026-08-28"
 
-# ── Dashboard settings (not expressible here; set them in the Pages project) ──
-#
-#   Build command      : npm run build
-#   Output directory   : dist
-#   Node version       : 24            (NODE_VERSION env var; .nvmrc is also read)
-#   Root directory     : /
-#
-#   Build-time environment variables:
-#     GOOGLE_MAPS_API_KEY   — client-exposed by design. Before setting it,
-#                             restrict the key to the Map Tiles API + your
-#                             HTTP referrers, and set a HARD daily quota cap
-#                             in Google Cloud (APIs & Services -> Quotas) plus
-#                             a billing budget. The quota cap is the real
-#                             spend control; referrer restriction is spoofable.
-#                             See docs/STAGE0-CHANGE-PLAN.md §3.1.
-#     CESIUM_ION_TOKEN      — leave UNSET. Cesium ion's ToS is unresolved for a
-#                             public ad-supported product
-#                             (COMMERCIAL_COMPLIANCE.md §2.2).
-#
-# ── Two things to verify on the first deploy ─────────────────────────────────
-#
-#   1. /api/* must reach the Worker, NOT the SPA fallback. God's Eye View's own
-#      preview server returns index.html with a 200 for unmatched /api routes,
-#      so the client receives HTML where it expects JSON and fails silently
-#      (docs/GEV-INSPECTION.md §5.4). Confirm /api/health returns JSON.
-#
-#   2. Bundle size. The GEV production build is ~28 MB with one 2.7 MB asset.
-#      Pages limits are 25 MiB per file and 20,000 files — within bounds, but
-#      close enough to check rather than assume.
+# Static build output. `not_found_handling` keeps deep links working for the
+# SPA — but note it must NOT swallow /api/*: God's Eye View's dev server does
+# exactly that, returning index.html with a 200 where JSON was expected, which
+# is invisible until a layer silently renders nothing
+# (docs/GEV-INSPECTION.md §5.4). Once a Worker script owns /api/*, that route
+# is handled before asset serving and the fallback cannot reach it.
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
+
+# ── Dashboard settings (not expressible here) ────────────────────────────────
+#   Build command  : npm run build
+#   Deploy command : npx wrangler deploy
+#   Build vars     : ARCGIS_API_KEY (Text), NODE_VERSION=24
